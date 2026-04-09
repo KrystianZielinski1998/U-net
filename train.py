@@ -191,10 +191,6 @@ class Trainer:
             # Predictions for metrics
             probs = torch.sigmoid(logits)
             preds = (probs > 0.5).long()  # keep shape [B,1,H,W]
-            print(f"Preds - min: {preds.min().item()}, max: {preds.max().item()}, shape: {preds.shape}")
-            print(f"Masks - min: {masks.min().item()}, max: {masks.max().item()}, shape: {masks.shape}")
-            print(f"Masks unique values: {torch.unique(masks)}")
-            print(f"Probs - min: {probs.min().item():.4f}, max: {probs.max().item():.4f}, mean: {probs.mean().item():.4f}")  
             metrics.update(loss, preds, masks)
 
         return metrics.compute()
