@@ -12,8 +12,8 @@ import wandb
 
 from dataset import SegmentationDataset, GetLoaders
 from train import Trainer
-from utils.logging_config import setup_logging
-from unet import UNet 
+from logging_config import setup_logging
+from unet import UNetModel 
 
 def parse_args():
     """
@@ -32,7 +32,8 @@ def parse_args():
     parser.add_argument("--batch_size", type=int, default=64, help="Batch size for training and validation")
     parser.add_argument("--max_epochs", type=int, default=120, help="Maximum number of epochs")
     parser.add_argument("--patience", type=int, default=20, help="Early stopping patience")
-    parser.add_argument("--base_lr", type=float, default=5e-4, help="Initial learning rate")
+    parser.add_argument("--base_lr", type=float, default=1e-3, help="Initial learning rate")
+    parser.add_argument("--min_lr", type=float, default=1e-7, help="Minimal lr")
 
     args = parser.parse_args()
 
@@ -49,17 +50,19 @@ def main():
     # Device
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    # Get dataset
-    segmentation_dataset = SegmentationDataset(
-        images_path="dataset/images",
-        masks_path="dataset/masks"
-    )
     # Get loaders
-    get_loaders = GetLoaders(args.dataset_path, args.batch_size)
+    get_loaders = GetLoaders(
+        images_path="dataset/images",
+        masks_path="dataset/masks",
+        batch_size=args.batch_size,
+        val_split=0.1, 
+        transform=None
+    )
+
     train_loader, val_loader = get_loaders()
 
     # Get U-Net model
-    model = UNet()
+    model = UNetModel()
     
     trainer = Trainer(
             model=model,
@@ -68,7 +71,8 @@ def main():
             device=device,
             max_epochs=args.max_epochs,
             patience=args.patience,
-            base_lr=args.base_lr
+            base_lr=args.base_lr,
+            min_lr=args.min_lr
         )
 
     trainer()

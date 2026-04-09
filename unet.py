@@ -144,7 +144,7 @@ class UNetModel(nn.Module):
       - Skip connections between downsample and upsample layers paths
     """
     def __init__(self,
-                 input_channels=1,
+                 input_channels=3,
                  base_channels=64,
                  out_ch=1,   
                  ch_mult=(1, 2, 4, 8),

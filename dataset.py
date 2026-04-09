@@ -57,7 +57,7 @@ class GetLoaders:
         self.val_split = val_split
         self.transform = transform
 
-    def get_loaders(self):
+    def __call__(self):
         # List of all indices
         all_indices = list(range(len(list(Path(self.images_path).glob("*.png")))))
         np.random.shuffle(all_indices)
