@@ -11,7 +11,7 @@ import logging
 import wandb
 
 from dataset import SegmentationDataset, GetLoaders
-from train get Trainer
+from train import Trainer
 from utils.logging_config import setup_logging
 from unet import UNet 
 
@@ -72,7 +72,7 @@ def main():
         )
 
     trainer()
-    
+
 if __name__ == "__main__":
     main()
     
