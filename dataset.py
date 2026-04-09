@@ -23,25 +23,28 @@ class SegmentationDataset(Dataset):
         return len(self.images_path)
 
     def __getitem__(self, idx):
-        img = Image.open(self.images_path[idx]).convert("RGB")
-        mask = Image.open(self.masks_path[idx]).convert("L")
+        # Load image and mask
+        img = np.array(Image.open(self.images_path[idx]).convert("RGB"), dtype=np.float32) / 255.0
+        mask = np.array(Image.open(self.masks_path[idx]).convert("L"), dtype=np.float32)
+        mask = (mask > 127).astype(np.float32)  # ensure binary 0/1
 
-        img = img.resize((224, 224))
-        mask = mask.resize((224, 224), resample=Image.NEAREST)
+        # Resize to 224x224
+        img = np.array(Image.fromarray((img*255).astype(np.uint8)).resize((224,224)))
+        mask = np.array(Image.fromarray((mask*255).astype(np.uint8)).resize((224,224), resample=Image.NEAREST))
+        mask = mask / 255.0  # back to 0-1 float
 
-        img = np.array(img)
-        mask = np.array(mask)
-
+        # Optional augmentations
         if self.transform:
             augmented = self.transform(image=img, mask=mask)
             img = augmented["image"]
             mask = augmented["mask"]
 
         # Convert to torch tensors
-        img = torch.from_numpy(img).permute(2, 0, 1).float() / 255.0  
-        mask = torch.from_numpy(mask).long() 
+        img = torch.from_numpy(img).permute(2,0,1).float()  # [C,H,W], 0-1
+        mask = torch.from_numpy(mask).float()   # [H,W], 0/1
 
         return img, mask
+
 
 
 class GetLoaders:
