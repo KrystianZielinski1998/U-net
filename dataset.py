@@ -23,12 +23,14 @@ class SegmentationDataset(Dataset):
         return len(self.images_path)
 
     def __getitem__(self, idx):
-        # Load image and mask
-        img = np.array(Image.open(self.images_path[idx]).convert("RGB"))
-        mask = np.array(Image.open(self.masks_path[idx]).convert("L"))
+        img = Image.open(self.images_path[idx]).convert("RGB")
+        mask = Image.open(self.masks_path[idx]).convert("L")
 
         img = img.resize((224, 224))
-        mask = mask.resize((224, 224), resample=Image.NEAREST)  
+        mask = mask.resize((224, 224), resample=Image.NEAREST)
+
+        img = np.array(img)
+        mask = np.array(mask)
 
         if self.transform:
             augmented = self.transform(image=img, mask=mask)
@@ -36,8 +38,8 @@ class SegmentationDataset(Dataset):
             mask = augmented["mask"]
 
         # Convert to torch tensors
-        img = torch.from_numpy(img).permute(2, 0, 1).float() / 255.0  # [C,H,W] normalized to 0-1
-        mask = torch.from_numpy(mask).long()  # [H,W]
+        img = torch.from_numpy(img).permute(2, 0, 1).float() / 255.0  
+        mask = torch.from_numpy(mask).long() 
 
         return img, mask
 
