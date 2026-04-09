@@ -27,6 +27,9 @@ class SegmentationDataset(Dataset):
         img = np.array(Image.open(self.images_path[idx]).convert("RGB"))
         mask = np.array(Image.open(self.masks_path[idx]).convert("L"))
 
+        img = img.resize((224, 224))
+        mask = mask.resize((224, 224), resample=Image.NEAREST)  
+
         if self.transform:
             augmented = self.transform(image=img, mask=mask)
             img = augmented["image"]
