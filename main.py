@@ -71,6 +71,8 @@ def main():
             base_lr=args.base_lr
         )
 
+    trainer()
+    
 if __name__ == "__main__":
     main()
     
