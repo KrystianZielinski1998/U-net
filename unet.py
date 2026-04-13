@@ -145,16 +145,16 @@ class UNetModel(nn.Module):
     """
     def __init__(self,
                  input_channels=3,
-                 base_channels=64,
+                 base_channels=32,
                  out_ch=1,   
-                 ch_mult=(1, 2, 4, 8),
+                 ch_mult=(1, 2, 4),
                  num_res_blocks=2,
                  dropout=0.0,
                  resamp_with_conv=True):
         super().__init__()
 
         # Initial Conv2d layer with groups=1
-        self.input_conv = nn.Conv2d(input_channels, base_channels, kernel_size=5, padding=1, groups=1)
+        self.input_conv = nn.Conv2d(input_channels, base_channels, kernel_size=5, padding=2, groups=1)
 
         # ---------------------
         # Downsample phase

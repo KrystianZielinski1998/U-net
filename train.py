@@ -6,6 +6,8 @@ from dataclasses import dataclass
 from tqdm import tqdm
 from torch.optim.lr_scheduler import CosineAnnealingLR
 import torch.optim as optim
+from torchmetrics.segmentation import MeanIoU, DiceScore
+from segmentation_vis import SegmentationVis
 
 # ----------------------------
 # Metrics
@@ -15,9 +17,12 @@ class Metrics:
     loss: float = 0.0
     dice: float = 0.0
     iou: float = 0.0
+    dice_torch: float = 0.0
+    iou_torch: float = 0.0
+    
 
 class EarlyStopping:
-    """ Early stopping to stop training when validation accuracy doesn't improve. Saves the best checkpoint. """
+    """ Early stopping to stop training when validation metric doesn't improve. Saves the best checkpoint. """
 
     def __init__(self, 
         patience: int, 
@@ -99,14 +104,22 @@ def iou_score(preds, masks, eps=1e-6):
 # Metrics accumulator
 # ----------------------------
 class MetricsAccumulator:
-    def __init__(self):
+    def __init__(self, device):
+        self.device = device
         self.reset()
+        
 
     def reset(self):
         self.total_loss = 0.0
         self.total_samples = 0
         self.dice_total = 0.0
         self.iou_total = 0.0
+        self.dice_torch_total = 0.0
+        self.iou_torch_total = 0.0
+        
+        self.dice_torch = DiceScore().to(self.device)
+        self.iou_torch = MeanIoU(num_classes=2).to(self.device)
+        
 
     def update(self, loss, preds, masks):
         """
@@ -114,18 +127,28 @@ class MetricsAccumulator:
         masks: [B,1,H,W]
         """
         B = masks.size(0)
+
         self.total_loss += loss.item() * B
+
         self.dice_total += dice_coeff(preds, masks).item() * B
         self.iou_total += iou_score(preds, masks).item() * B
+        
+        self.dice_torch.update(preds, masks)
+        self.iou_torch.update(preds, masks)
+
         self.total_samples += B
+
 
     def compute(self):
         avg_loss = self.total_loss / self.total_samples
+
         avg_dice = self.dice_total / self.total_samples
         avg_iou = self.iou_total / self.total_samples
 
-        print(avg_loss, avg_dice, avg_iou)
-        return Metrics(avg_loss, avg_dice, avg_iou)
+        avg_dice_torch = self.dice_torch.compute().item()
+        avg_iou_torch = self.iou_torch.compute().item()
+
+        return Metrics(avg_loss, avg_dice, avg_iou, avg_dice_torch, avg_iou_torch)
 
 # ----------------------------
 # Loss
@@ -171,11 +194,14 @@ class Trainer:
         self.optimizer = optim.AdamW(model.parameters(), lr=base_lr)
         self.scheduler = CosineAnnealingLR(self.optimizer, T_max=self.max_epochs, eta_min=self.min_lr)
         self.early_stopping = EarlyStopping(patience=self.patience, min_delta=0.0, verbose=True)
+        self.vis = SegmentationVis(self.model, self.val_loader, self.device)
+
         self.logger = logging.getLogger(__name__)
 
     def train_one_epoch(self):
         self.model.train()
-        metrics = MetricsAccumulator()
+        metrics = MetricsAccumulator(self.device)
+
         for imgs, masks in tqdm(self.train_loader, total=len(self.train_loader), desc="Training"):
             imgs, masks = imgs.to(self.device), masks.to(self.device)
 
@@ -207,10 +233,12 @@ class Trainer:
                 probs = torch.sigmoid(logits)
                 preds = (probs > 0.5).long()
                 metrics.update(loss, preds, masks)
+
         return metrics.compute()
 
     def __call__(self):
         for epoch in range(self.max_epochs):
+            self.logger.info(f"_____________________________________________________________________________________")
             self.logger.info(f"Epoch: {epoch+1} / {self.max_epochs}")
             self.logger.info(f"Current LR: {self.optimizer.param_groups[0]['lr']:.6f}")
 
@@ -218,13 +246,22 @@ class Trainer:
             eval_metrics = self.evaluate()
 
             self.logger.info(f"Train Loss: {train_metrics.loss:.4f} || Val Loss: {eval_metrics.loss:.4f}")
+
             self.logger.info(f"Train Dice: {train_metrics.dice:.4f} || Val Dice: {eval_metrics.dice:.4f}")
+            self.logger.info(f"Train Torch Dice: {train_metrics.dice_torch:.4f} || Val Dice: {eval_metrics.dice_torch:.4f}")
+
             self.logger.info(f"Train IoU: {train_metrics.iou:.4f} || Val IoU: {eval_metrics.iou:.4f}")
+            self.logger.info(f"Train Torch IoU: {train_metrics.dice_iou:.4f} || Val Torch IoU: {eval_metrics.dice_iou:.4f}")
+            
+            if epoch % 5 == 0:
+                self.vis(model=self.model, num_samples=6)
 
             self.scheduler.step()
             self.early_stopping(eval_metrics.loss, self.model)
             if self.early_stopping.early_stop:
                 break
+
+            
 
            
 
