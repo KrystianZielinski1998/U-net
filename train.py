@@ -182,6 +182,7 @@ class Trainer:
     def __init__(self, model, train_loader, val_loader, device,
                  max_epochs, patience, base_lr, min_lr):
         self.model = model.to(device)
+        
         self.device = device
         self.train_loader = train_loader
         self.val_loader = val_loader
@@ -197,6 +198,13 @@ class Trainer:
         self.vis = SegmentationVis(self.val_loader, self.device)
 
         self.logger = logging.getLogger(__name__)
+        self.logger.info(model)
+
+        total_params = sum(p.numel() for p in model.parameters())
+        trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+
+        self.logger.info(f"Total params: {total_params:,}")
+        self.logger.info(f"Trainable params: {trainable_params:,}")
 
     def train_one_epoch(self):
         self.model.train()
