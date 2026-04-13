@@ -66,13 +66,9 @@ class EarlyStopping:
 
 def dice_coeff(preds, masks, eps=1e-6):
     """
-    preds: [B,H,W] or [B,1,H,W]
-    masks: [B,H,W] or [B,1,H,W]
+    preds: [B,H,W] 
+    masks: [B,H,W]
     """
-    if preds.ndim == 4:
-        preds = preds.squeeze(1)
-    if masks.ndim == 4:
-        masks = masks.squeeze(1)
 
     preds = preds.float()
     masks = masks.float()
@@ -85,8 +81,8 @@ def dice_coeff(preds, masks, eps=1e-6):
 
 def iou_score(preds, masks, eps=1e-6):
     """
-    preds: [B,H,W] or [B,1,H,W]
-    masks: [B,H,W] or [B,1,H,W]
+    preds: [B,H,W] 
+    masks: [B,H,W] 
     """
     if preds.ndim == 4:
         preds = preds.squeeze(1)
@@ -123,8 +119,8 @@ class MetricsAccumulator:
 
     def update(self, loss, preds, masks):
         """
-        preds: [B,1,H,W]
-        masks: [B,1,H,W]
+        preds: [B,H,W]
+        masks: [B,H,W]
         """
         B = masks.size(0)
 
@@ -224,7 +220,11 @@ class Trainer:
 
             # Predictions for metrics
             probs = torch.sigmoid(logits)
-            preds = (probs > 0.5).long()  # keep shape [B,1,H,W]
+            preds = (probs > 0.5).long()  
+
+            preds = preds.squeeze(1)
+            masks = masks.squeeze(1)
+
             metrics.update(loss, preds, masks)
 
         return metrics.compute()
@@ -240,6 +240,10 @@ class Trainer:
 
                 probs = torch.sigmoid(logits)
                 preds = (probs > 0.5).long()
+
+                preds = preds.squeeze(1)
+                masks = masks.squeeze(1)
+
                 metrics.update(loss, preds, masks)
 
         return metrics.compute()
