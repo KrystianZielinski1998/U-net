@@ -117,7 +117,7 @@ class MetricsAccumulator:
         self.dice_torch_total = 0.0
         self.iou_torch_total = 0.0
         
-        self.dice_torch = DiceScore().to(self.device)
+        self.dice_torch = DiceScore(num_classes=2).to(self.device)
         self.iou_torch = MeanIoU(num_classes=2).to(self.device)
         
 
@@ -194,7 +194,7 @@ class Trainer:
         self.optimizer = optim.AdamW(model.parameters(), lr=base_lr)
         self.scheduler = CosineAnnealingLR(self.optimizer, T_max=self.max_epochs, eta_min=self.min_lr)
         self.early_stopping = EarlyStopping(patience=self.patience, min_delta=0.0, verbose=True)
-        self.vis = SegmentationVis(self.model, self.val_loader, self.device)
+        self.vis = SegmentationVis(self.val_loader, self.device)
 
         self.logger = logging.getLogger(__name__)
 
