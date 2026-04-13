@@ -4,34 +4,30 @@ from torch.utils.data import Dataset, DataLoader
 from PIL import Image
 import numpy as np
 
-class SegmentationDataset(Dataset):
-    """
-    Dataset for 2D image segmentation.
-    Expects images and masks as separate folders.
-    """
-    def __init__(self, 
-            images_path, 
-            masks_path, 
-            transform=None
-        ):
+from PIL import Image
+import torch
+import numpy as np
 
-        self.images_path = sorted(list(Path(images_path).glob("*.png")))  
+class SegmentationDataset(Dataset):
+    def __init__(self, images_path, masks_path, transform=None, img_size=224):
+        self.images_path = sorted(list(Path(images_path).glob("*.png")))
         self.masks_path = sorted(list(Path(masks_path).glob("*.png")))
         self.transform = transform
-
-    def __len__(self):
-        return len(self.images_path)
+        self.img_size = img_size
 
     def __getitem__(self, idx):
-        # Load image and mask
-        img = np.array(Image.open(self.images_path[idx]).convert("RGB"), dtype=np.float32) / 255.0
-        mask = np.array(Image.open(self.masks_path[idx]).convert("L"), dtype=np.float32)
-        mask = (mask > 127).astype(np.float32)  # ensure binary 0/1
+        img = Image.open(self.images_path[idx]).convert("RGB")
+        mask = Image.open(self.masks_path[idx]).convert("L")
 
-        # Resize to 224x224
-        img = np.array(Image.fromarray((img*255).astype(np.uint8)).resize((224,224)))
-        mask = np.array(Image.fromarray((mask*255).astype(np.uint8)).resize((224,224), resample=Image.NEAREST))
-        mask = mask / 255.0  # back to 0-1 float
+        img = img.resize((self.img_size, self.img_size), Image.BILINEAR)
+        mask = mask.resize((self.img_size, self.img_size), Image.NEAREST)
+
+        # Convert to numpy
+        img = np.array(img, dtype=np.float32) / 255.0
+        mask = np.array(mask, dtype=np.float32)
+
+        # Binary mask
+        mask = (mask > 127).astype(np.float32)
 
         # Optional augmentations
         if self.transform:
@@ -39,9 +35,9 @@ class SegmentationDataset(Dataset):
             img = augmented["image"]
             mask = augmented["mask"]
 
-        # Convert to torch tensors
-        img = torch.from_numpy(img).permute(2,0,1).float()  # [C,H,W], 0-1
-        mask = torch.from_numpy(mask).float()   # [H,W], 0/1
+        # To tensor
+        img = torch.from_numpy(img).permute(2, 0, 1).float()
+        mask = torch.from_numpy(mask).float()
 
         return img, mask
 
