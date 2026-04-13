@@ -29,7 +29,7 @@ def parse_args():
     parser.add_argument("-d", "--dataset_name", type=str, required=True, help="Name of the dataset")
     
     # Training hyperparameters
-    parser.add_argument("--batch_size", type=int, default=64, help="Batch size for training and validation")
+    parser.add_argument("--batch_size", type=int, default=16, help="Batch size for training and validation")
     parser.add_argument("--max_epochs", type=int, default=120, help="Maximum number of epochs")
     parser.add_argument("--patience", type=int, default=20, help="Early stopping patience")
     parser.add_argument("--base_lr", type=float, default=1e-3, help="Initial learning rate")
