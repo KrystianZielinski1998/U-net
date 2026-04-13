@@ -6,8 +6,9 @@ from dataclasses import dataclass
 from tqdm import tqdm
 from torch.optim.lr_scheduler import CosineAnnealingLR
 import torch.optim as optim
-from torchmetrics.segmentation import MeanIoU, DiceScore
 from segmentation_vis import SegmentationVis
+from torchmetrics.classification import Dice, BinaryJaccardIndex
+
 
 # ----------------------------
 # Metrics
@@ -113,8 +114,8 @@ class MetricsAccumulator:
         self.dice_torch_total = 0.0
         self.iou_torch_total = 0.0
         
-        self.dice_torch = DiceScore(num_classes=2).to(self.device)
-        self.iou_torch = MeanIoU(num_classes=2).to(self.device)
+        self.dice_torch = Dice(task="binary").to(self.device)
+        self.iou_torch = BinaryJaccardIndex().to(self.device)
         
 
     def update(self, loss, preds, masks):
