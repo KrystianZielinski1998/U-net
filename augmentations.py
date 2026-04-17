@@ -4,10 +4,10 @@ import cv2
 
 class AugmentationScheduler:
     """
-    Augmentation scheduler with train/val mode support.
+    Augmentation scheduler.
     """
 
-    def __init__(self, max_epochs: int, no_aug_epochs: int = 0):
+    def __init__(self, max_epochs: int = 120, no_aug_epochs: int = 0):
         self.max_epochs = max_epochs
         self.no_aug_epochs = no_aug_epochs
         self.epoch = 0
@@ -58,13 +58,11 @@ class AugmentationScheduler:
             mode (str): "train" or "val"
         """
 
-        # Validation / test → always no augmentation
         match mode: 
             case "val":
                 return self.no_aug
 
             case "train":
-                # Training scheduled augmentation
                 if self.epoch < self.max_epochs - self.no_aug_epochs:
                     return self.aug
                 else:
@@ -75,6 +73,7 @@ class AugmentationScheduler:
         transform = self.get_transform(mode)
         augmented = transform(image=image, mask=mask)
         return augmented["image"], augmented["mask"]
+
 
 
 

@@ -10,6 +10,8 @@ from torchmetrics.classification import BinaryJaccardIndex, BinaryF1Score
 from tabulate import tabulate
 from segmentation_vis import SegmentationVis
 from augmentations import AugmentationScheduler
+from dataset import SegmentationDataset, GetLoaders
+import os
 
 # ----------------------------
 # Metrics
@@ -43,7 +45,7 @@ class EarlyStopping:
         self.min_delta = min_delta
         self.verbose = verbose
         self.counter = 0
-        self.best_loss = float("inf")
+        self.best_dice = 0.0
         self.early_stop = False
 
         self.logger = logging.getLogger(__name__)
@@ -53,8 +55,8 @@ class EarlyStopping:
     def __call__(self, val_dice, model):
         if val_dice > self.best_dice - self.min_delta:
             if self.verbose:
-                self.logger.info(f'Dice score on validation set increased from {self.best_dice: .4f} to {best_dice: .4f}. Saving model...')
-            self.best_dice = best_dice
+                self.logger.info(f'Dice score on validation set increased from {self.best_dice: .4f} to {val_dice: .4f}. Saving model...')
+            self.best_dice = val_dice
             self.counter = 0
             
             # Save the model
@@ -212,7 +214,7 @@ class Trainer:
             transform=self.augmentation_scheduler
         )
 
-        self.train_loader, self.val_loader = get_loaders()
+        self.train_loader, self.val_loader = self.get_loaders()
 
         self.vis = SegmentationVis(self.val_loader, self.device)
 
@@ -306,13 +308,15 @@ class Trainer:
 
             self.log_metrics(train_metrics, eval_metrics)
             
-            if (epoch+1) % 5 == 0:
+            if (epoch+1) % 1 == 0:
                 self.vis(model=self.model, epoch=epoch+1, num_samples=6)
 
             self.scheduler.step()
             self.early_stopping(eval_metrics.dice_torch, self.model)
             if self.early_stopping.early_stop:
                 break
+
+            
 
             
 

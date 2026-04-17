@@ -11,6 +11,8 @@ import logging
 import wandb
 
 from dataset import SegmentationDataset, GetLoaders
+from augmentation_vis import AugmentationVis
+from segmentation_vis import SegmentationVis
 from train import Trainer
 from logging_config import setup_logging
 from unet import UNetModel 
@@ -55,11 +57,10 @@ def main():
     
     trainer = Trainer(
             model=model,
-            train_loader=train_loader,
-            val_loader=val_loader,
             device=device,
             max_epochs=args.max_epochs,
             patience=args.patience,
+            batch_size=args.batch_size,
             base_lr=args.base_lr,
             min_lr=args.min_lr,
             no_aug_epochs=args.no_aug_epochs
@@ -67,8 +68,23 @@ def main():
 
     trainer()
 
+def visualize_augmentation():
+ 
+    visualizer = AugmentationVis(
+        train_loader=train_loader,
+        transform=self.transform,
+    )
+
+    visualizer(
+        num_samples=20,
+        save_path="augmentation_preview.png"
+    )
+
+    
 if __name__ == "__main__":
-    main()
+    visualize_augmentation()
+    #main()
+    
     
 
 

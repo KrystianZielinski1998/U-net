@@ -23,17 +23,19 @@ class SegmentationDataset(Dataset):
         img = img.resize((self.img_size, self.img_size), Image.BILINEAR)
         mask = mask.resize((self.img_size, self.img_size), Image.NEAREST)
 
-        img = np.array(img, dtype=np.float32)
-        mask = np.array(mask, dtype=np.float32)
+        # ❗ KEEP UINT8 (IMPORTANT FIX)
+        img = np.array(img)  
+        mask = np.array(mask)
 
         mask = (mask > 127).astype(np.float32)
 
         if self.transform:
             augmented = self.transform(image=img, mask=mask, mode=self.mode)
-            img = augmented["image"]
-            mask = augmented["mask"]
+            img, mask = augmented
 
         img = torch.from_numpy(img).permute(2, 0, 1).float()
+
+        # model expects float mask
         mask = torch.from_numpy(mask).float()
 
         return img, mask
@@ -94,18 +96,6 @@ class GetLoaders:
         train_loader = DataLoader(train_dataset, batch_size=self.batch_size, shuffle=True, num_workers=2)
         val_loader = DataLoader(val_dataset, batch_size=self.batch_size, shuffle=False, num_workers=2)
         
-        # Visualize 
-        visualizer = AugmentationVis(
-            dataset=train_dataset.dataset,   
-            transform=self.transform,
-            mode="train"
-        )
-
-        visualizer(
-            num_samples=6,
-            save_path="augmentation_preview.png"
-        )
-
         return train_loader, val_loader
 
 

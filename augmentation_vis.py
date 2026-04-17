@@ -1,82 +1,156 @@
-import matplotlib.pyplot as plt
 import numpy as np
-import torch
-
-
+import matplotlib.pyplot as plt
 from pathlib import Path
-import matplotlib.pyplot as plt
+from PIL import Image
+import random
+
+
 import numpy as np
+import matplotlib.pyplot as plt
 import torch
-import os
 
 
 class AugmentationVis:
     """
-    Visualizes augmentation effects on a plot and saves it.
+    Reads images and masks directly from paths and visualizes it with its augmented version.
 
-    Row 1: original images
-    Row 2: augmented images
+    Rows:
+    1 → original 
+    2 → augmented 
+    3 → original mask
+    4 → augmented mask
     """
 
-    def __init__(self, dataset, transform, mode="train"):
-        self.dataset = dataset
+    def __init__(self, image_paths, mask_paths, transform, device="cpu"):
+        self.image_paths = image_paths
+        self.mask_paths = mask_paths
         self.transform = transform
-        self.mode = mode
+        self.device = device
 
-    def _to_numpy_img(self, img):
+        self.mean = np.array([0.485, 0.456, 0.406], dtype=np.float32)
+        self.std  = np.array([0.229, 0.224, 0.225], dtype=np.float32)
+
+    # -------------------------
+    # load image (keep in 0-255 range)
+    # -------------------------
+    def load_image(self, path):
+        """Load image from path, returns numpy array in 0-255 range (uint8)"""
+        img = cv2.imread(path)
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        return img  # Keep as uint8, 0-255 range
+
+    def load_mask(self, path):
+        """Load mask from path, returns binary numpy array (0 or 1)"""
+        mask = cv2.imread(path, cv2.IMREAD_GRAYSCALE)
+        mask = (mask > 127).astype(np.float32)  # Binary mask: 0 or 1
+        return mask
+
+    # -------------------------
+    # denormalize (for augmented images that were normalized)
+    # -------------------------
+    def denormalize(self, img):
+        """
+        img: CHW normalized tensor or numpy array (values ~ N(0,1))
+        Returns: HWC numpy array in [0,1] range for visualization
+        """
         if isinstance(img, torch.Tensor):
             img = img.detach().cpu().numpy()
 
-        if img.shape[0] in [1, 3]:
+        # Convert CHW to HWC if needed
+        if img.ndim == 3 and img.shape[0] in [1, 3]:
             img = np.transpose(img, (1, 2, 0))
 
-        return img
+        img = img * self.std + self.mean
+        return np.clip(img, 0, 1)
 
-    def _normalize(self, x):
-        x = x - x.min()
-        return x / (x.max() + 1e-8)
+    # -------------------------
+    # main
+    # -------------------------
+    def __call__(self, num_samples=4, save_path="aug_vis.png"):
+        
+        # Select random samples
+        indices = np.random.choice(len(self.image_paths), num_samples, replace=False)
+        
+        fig, axes = plt.subplots(4, num_samples, figsize=(4 * num_samples, 10))
 
-    def __call__(self, num_samples=4, save_path="aug_vis.png", figsize=(12, 6)):
-        """
-        Visualize and save augmentation comparison grid.
-        """
-
-        save_path = Path(save_path)
-        save_path.parent.mkdir(parents=True, exist_ok=True)
-
-        fig, axes = plt.subplots(2, num_samples, figsize=figsize)
-
-        for i in range(num_samples):
-            img, mask = self.dataset[i]
-
-            orig_img = self._to_numpy_img(img)
-
+        for i, idx in enumerate(indices):
+            
+            # -------------------------
+            # LOAD ORIGINAL (0-255 range)
+            # -------------------------
+            img_path = self.image_paths[idx]
+            mask_path = self.mask_paths[idx]
+            
+            # Load original image (uint8, 0-255) and mask (0 or 1)
+            orig_img = self.load_image(img_path)
+            orig_mask = self.load_mask(mask_path)
+            
+            # Original image for display (just convert to float [0,1] for matplotlib)
+            orig_img_display = orig_img.astype(np.float32) / 255.0
+            
+            # -------------------------
+            # APPLY AUGMENTATION (includes normalization)
+            # -------------------------
             if self.transform:
-                aug = self.transform(
-                    image=orig_img,
-                    mask=mask,
-                    mode=self.mode
+                # Transform expects image in 0-255 range (uint8) or 0-1 float?
+                # Albumentations with Normalize() typically expects uint8 or float in [0,1]
+                # Since we have uint8, convert to float32 [0,1] first
+                
+                aug_img, aug_mask = self.transform(
+                    image=img_float,
+                    mask=orig_mask,
+                    mode="train"
                 )
-                aug_img = aug["image"]
+                
+                # aug_img is now normalized (mean=0, std=1 approximately)
+                # Denormalize for visualization
+                aug_img_viz = self.denormalize(aug_img)
+                aug_mask_viz = aug_mask
             else:
-                aug_img = orig_img
-
-            aug_img = self._to_numpy_img(aug_img)
-
-            orig_img = self._normalize(orig_img)
-            aug_img = self._normalize(aug_img)
-
-            axes[0, i].imshow(orig_img)
+                aug_img_viz = orig_img_display
+                aug_mask_viz = orig_mask
+            
+            # -------------------------
+            # masks cleanup (ensure binary)
+            # -------------------------
+            orig_mask_viz = (orig_mask > 0.5).astype(np.float32)
+            aug_mask_viz = (aug_mask_viz > 0.5).astype(np.float32)
+            
+            # -------------------------
+            # row 1: Original image (0-255 range, displayed as [0,1])
+            # -------------------------
+            axes[0, i].imshow(orig_img_display)
             axes[0, i].set_title("Original")
             axes[0, i].axis("off")
-
-            axes[1, i].imshow(aug_img)
+            
+            # -------------------------
+            # row 2: Augmented image (denormalized)
+            # -------------------------
+            axes[1, i].imshow(aug_img_viz)
             axes[1, i].set_title("Augmented")
             axes[1, i].axis("off")
-
+            
+            # -------------------------
+            # row 3: Original mask
+            # -------------------------
+            axes[2, i].imshow(orig_mask_viz, cmap="gray")
+            axes[2, i].set_title("Mask")
+            axes[2, i].axis("off")
+            
+            # -------------------------
+            # row 4: Augmented mask
+            # -------------------------
+            axes[3, i].imshow(aug_mask_viz, cmap="gray")
+            axes[3, i].set_title("Aug Mask")
+            axes[3, i].axis("off")
+        
         plt.tight_layout()
         plt.savefig(save_path, dpi=300, bbox_inches="tight")
+        plt.close()
         
+ 
+
+
 
 
 
