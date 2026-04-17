@@ -34,7 +34,7 @@ def parse_args():
     parser.add_argument("--patience", type=int, default=20, help="Early stopping patience")
     parser.add_argument("--base_lr", type=float, default=1e-3, help="Initial learning rate")
     parser.add_argument("--min_lr", type=float, default=1e-7, help="Minimal lr")
-
+    parser.add_argument("--no_aug_epochs", type=int, default=20, help="Number of epochs without augmentation")
     args = parser.parse_args()
 
     return args
@@ -50,17 +50,6 @@ def main():
     # Device
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    # Get loaders
-    get_loaders = GetLoaders(
-        images_path="dataset/images",
-        masks_path="dataset/masks",
-        batch_size=args.batch_size,
-        val_split=0.1, 
-        transform=None
-    )
-
-    train_loader, val_loader = get_loaders()
-
     # Get U-Net model
     model = UNetModel()
     
@@ -72,7 +61,8 @@ def main():
             max_epochs=args.max_epochs,
             patience=args.patience,
             base_lr=args.base_lr,
-            min_lr=args.min_lr
+            min_lr=args.min_lr,
+            no_aug_epochs=args.no_aug_epochs
         )
 
     trainer()

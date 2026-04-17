@@ -6,9 +6,10 @@ from dataclasses import dataclass
 from tqdm import tqdm
 from torch.optim.lr_scheduler import CosineAnnealingLR
 import torch.optim as optim
+from torchmetrics.classification import BinaryJaccardIndex, BinaryF1Score
+from tabulate import tabulate
 from segmentation_vis import SegmentationVis
-from torchmetrics.classification import Dice, BinaryJaccardIndex
-
+from augmentations import AugmentationScheduler
 
 # ----------------------------
 # Metrics
@@ -21,7 +22,9 @@ class Metrics:
     dice_torch: float = 0.0
     iou_torch: float = 0.0
     
-
+# ----------------------------
+# Early Stopping
+# ----------------------------
 class EarlyStopping:
     """ Early stopping to stop training when validation metric doesn't improve. Saves the best checkpoint. """
 
@@ -45,16 +48,18 @@ class EarlyStopping:
 
         self.logger = logging.getLogger(__name__)
 
+        os.makedirs("checkpoints", exist_ok=True)
         
-    def __call__(self, val_loss, model):
-        if val_loss < self.best_loss - self.min_delta:
+    def __call__(self, val_dice, model):
+        if val_dice > self.best_dice - self.min_delta:
             if self.verbose:
-                self.logger.info(f'Loss on validation set decreased from {self.best_loss: .4f} to {val_loss: .4f}. Saving model...')
-            self.best_loss = val_loss
+                self.logger.info(f'Dice score on validation set increased from {self.best_dice: .4f} to {best_dice: .4f}. Saving model...')
+            self.best_dice = best_dice
             self.counter = 0
             
             # Save the model
-            torch.save(model.state_dict(), f"best_model.pth")
+            torch.save(model.state_dict(), f"checkpoints/best_model.pth")
+
         else:
             self.counter += 1
             if self.verbose:
@@ -65,10 +70,14 @@ class EarlyStopping:
                 if self.verbose:
                     self.logger.info('Early stopping triggered.')
 
+# ----------------------------
+# Dice
+# ----------------------------
 def dice_coeff(preds, masks, eps=1e-6):
     """
-    preds: [B,H,W] 
-    masks: [B,H,W]
+    Args:
+        preds (): [B,H,W] 
+        masks (): [B,H,W]
     """
 
     preds = preds.float()
@@ -79,16 +88,15 @@ def dice_coeff(preds, masks, eps=1e-6):
     dice = (2 * intersection + eps) / (union + eps)
     return dice.mean()
 
-
+# ----------------------------
+# IoU
+# ----------------------------
 def iou_score(preds, masks, eps=1e-6):
     """
-    preds: [B,H,W] 
-    masks: [B,H,W] 
+    Args:
+        preds (): [B,H,W] 
+        masks (): [B,H,W]
     """
-    if preds.ndim == 4:
-        preds = preds.squeeze(1)
-    if masks.ndim == 4:
-        masks = masks.squeeze(1)
 
     preds = preds.float()
     masks = masks.float()
@@ -114,14 +122,15 @@ class MetricsAccumulator:
         self.dice_torch_total = 0.0
         self.iou_torch_total = 0.0
         
-        self.dice_torch = Dice(task="binary").to(self.device)
+        self.dice_torch = BinaryF1Score().to(self.device)
         self.iou_torch = BinaryJaccardIndex().to(self.device)
         
 
     def update(self, loss, preds, masks):
         """
-        preds: [B,H,W]
-        masks: [B,H,W]
+        Args:
+            preds (): [B,H,W] 
+            masks (): [B,H,W]
         """
         B = masks.size(0)
 
@@ -158,47 +167,64 @@ class BCEDiceLoss(nn.Module):
 
     def forward(self, logits, masks):
         """
-        logits: [B, 1, H, W] from the model
-        masks: [B, H, W] ground truth
+        Args:
+            logits (): [B, 1, H, W] from the model
+            masks (): [B, H, W] ground truth
         """
         # Add channel dimension to masks to match logits
         masks = masks.unsqueeze(1).float()  # [B,1,H,W]
 
         # Sigmoid for Dice
         probs = torch.sigmoid(logits)
-        dice = dice_coeff(probs, masks)  # safe dice, handles [B,1,H,W]
+        dice = dice_coeff(probs, masks)  
 
         # BCE loss
         bce = self.bce(logits, masks)
 
         return self.bce_weight * bce + (1 - self.bce_weight) * (1 - dice)
+
 # ----------------------------
 # Trainer
 # ----------------------------
 class Trainer:
-    def __init__(self, model, train_loader, val_loader, device,
-                 max_epochs, patience, base_lr, min_lr):
+    def __init__(self, model, device, max_epochs, patience, batch_size, base_lr, min_lr, no_aug_epochs):
         self.model = model.to(device)
         
         self.device = device
-        self.train_loader = train_loader
-        self.val_loader = val_loader
         self.max_epochs = max_epochs
         self.patience = patience
+        self.batch_size = batch_size
         self.base_lr = base_lr
         self.min_lr = min_lr
+        self.no_aug_epochs = no_aug_epochs
 
         self.criterion = BCEDiceLoss()
         self.optimizer = optim.AdamW(model.parameters(), lr=base_lr)
         self.scheduler = CosineAnnealingLR(self.optimizer, T_max=self.max_epochs, eta_min=self.min_lr)
         self.early_stopping = EarlyStopping(patience=self.patience, min_delta=0.0, verbose=True)
+        self.augmentation_scheduler = AugmentationScheduler(self.max_epochs, self.no_aug_epochs)
+
+        self.get_loaders = GetLoaders(
+            images_path="dataset/images",
+            masks_path="dataset/masks",
+            batch_size=self.batch_size,
+            val_split=0.1, 
+            transform=self.augmentation_scheduler
+        )
+
+        self.train_loader, self.val_loader = get_loaders()
+
         self.vis = SegmentationVis(self.val_loader, self.device)
 
         self.logger = logging.getLogger(__name__)
-        self.logger.info(model)
+        
+        self.log_model_info()
 
-        total_params = sum(p.numel() for p in model.parameters())
-        trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    def log_model_info(self):
+        self.logger.info(self.model)
+
+        total_params = sum(p.numel() for p in self.model.parameters())
+        trainable_params = sum(p.numel() for p in self.model.parameters() if p.requires_grad)
 
         self.logger.info(f"Total params: {total_params:,}")
         self.logger.info(f"Trainable params: {trainable_params:,}")
@@ -232,7 +258,8 @@ class Trainer:
 
     def evaluate(self):
         self.model.eval()
-        metrics = MetricsAccumulator()
+        metrics = MetricsAccumulator(self.device)
+
         with torch.no_grad():
             for imgs, masks in tqdm(self.val_loader, total=len(self.val_loader), desc="Evaluating"):
                 imgs, masks = imgs.to(self.device), masks.to(self.device)
@@ -249,28 +276,41 @@ class Trainer:
 
         return metrics.compute()
 
+    def log_metrics(self, train_metrics, eval_metrics):
+    
+        table = [
+            ["Loss", train_metrics.loss, eval_metrics.loss],
+            ["Dice", train_metrics.dice, eval_metrics.dice],
+            ["Dice (torch)", train_metrics.dice_torch, eval_metrics.dice_torch],
+            ["IoU", train_metrics.iou, eval_metrics.iou],
+            ["IoU (torch)", train_metrics.iou_torch, eval_metrics.iou_torch],
+        ]
+
+        self.logger.info("\n" + tabulate(
+            table,
+            headers=["Metric", "Train", "Val"],
+            floatfmt=".4f",
+            tablefmt="fancy_grid"  
+        ))
+
     def __call__(self):
         for epoch in range(self.max_epochs):
             self.logger.info(f"_____________________________________________________________________________________")
             self.logger.info(f"Epoch: {epoch+1} / {self.max_epochs}")
             self.logger.info(f"Current LR: {self.optimizer.param_groups[0]['lr']:.6f}")
 
+            self.augmentation_scheduler.set_epoch(epoch)
+
             train_metrics = self.train_one_epoch()
             eval_metrics = self.evaluate()
 
-            self.logger.info(f"Train Loss: {train_metrics.loss:.4f} || Val Loss: {eval_metrics.loss:.4f}")
-
-            self.logger.info(f"Train Dice: {train_metrics.dice:.4f} || Val Dice: {eval_metrics.dice:.4f}")
-            self.logger.info(f"Train Torch Dice: {train_metrics.dice_torch:.4f} || Val Dice: {eval_metrics.dice_torch:.4f}")
-
-            self.logger.info(f"Train IoU: {train_metrics.iou:.4f} || Val IoU: {eval_metrics.iou:.4f}")
-            self.logger.info(f"Train Torch IoU: {train_metrics.dice_iou:.4f} || Val Torch IoU: {eval_metrics.dice_iou:.4f}")
+            self.log_metrics(train_metrics, eval_metrics)
             
-            if epoch % 5 == 0:
-                self.vis(model=self.model, num_samples=6)
+            if (epoch+1) % 5 == 0:
+                self.vis(model=self.model, epoch=epoch+1, num_samples=6)
 
             self.scheduler.step()
-            self.early_stopping(eval_metrics.loss, self.model)
+            self.early_stopping(eval_metrics.dice_torch, self.model)
             if self.early_stopping.early_stop:
                 break
 
