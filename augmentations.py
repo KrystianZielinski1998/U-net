@@ -3,17 +3,18 @@ import cv2
 
 
 class AugmentationScheduler:
-    """
-    Augmentation scheduler.
-    """
-
     def __init__(self, max_epochs: int = 120, no_aug_epochs: int = 0):
         self.max_epochs = max_epochs
         self.no_aug_epochs = no_aug_epochs
         self.epoch = 0
 
-        # Augmentation pipeline
-        self.aug = A.Compose([
+        # Always applied (normalization)
+        self.base = [
+            A.Lambda(image=lambda x, **kwargs: x / 255.0)
+        ]
+
+        # Augmentations only
+        self.aug_only = [
             A.HorizontalFlip(p=0.5),
 
             A.OneOf([
@@ -40,34 +41,19 @@ class AugmentationScheduler:
                     p=1.0
                 )
             ], p=0.5),
-
-            A.Normalize()
-        ])
-
-        # No augmentation 
-        self.no_aug = A.Compose([
-            A.Normalize()
-        ])
+        ]
 
     def set_epoch(self, epoch: int):
         self.epoch = epoch
 
     def get_transform(self, mode: str = "train"):
-        """
-        Args:
-            mode (str): "train" or "val"
-        """
+        if mode == "val":
+            return A.Compose(self.base)
 
-        match mode: 
-            case "val":
-                return self.no_aug
-
-            case "train":
-                if self.epoch < self.max_epochs - self.no_aug_epochs:
-                    return self.aug
-                else:
-                    return self.no_aug
-        
+        if self.epoch < self.max_epochs - self.no_aug_epochs:
+            return A.Compose(self.aug_only + self.base)
+        else:
+            return A.Compose(self.base)
 
     def __call__(self, image, mask, mode: str = "train"):
         transform = self.get_transform(mode)

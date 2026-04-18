@@ -16,6 +16,7 @@ from segmentation_vis import SegmentationVis
 from train import Trainer
 from logging_config import setup_logging
 from unet import UNetModel 
+from augmentations import AugmentationScheduler
 
 def parse_args():
     """
@@ -34,7 +35,7 @@ def parse_args():
     parser.add_argument("--batch_size", type=int, default=16, help="Batch size for training and validation")
     parser.add_argument("--max_epochs", type=int, default=120, help="Maximum number of epochs")
     parser.add_argument("--patience", type=int, default=20, help="Early stopping patience")
-    parser.add_argument("--base_lr", type=float, default=1e-3, help="Initial learning rate")
+    parser.add_argument("--base_lr", type=float, default=5e-3, help="Initial learning rate")
     parser.add_argument("--min_lr", type=float, default=1e-7, help="Minimal lr")
     parser.add_argument("--no_aug_epochs", type=int, default=20, help="Number of epochs without augmentation")
     args = parser.parse_args()
@@ -69,21 +70,27 @@ def main():
     trainer()
 
 def visualize_augmentation():
- 
+
+    args = parse_args()
+
+    transform = AugmentationScheduler(args.max_epochs, args.no_aug_epochs)
+
     visualizer = AugmentationVis(
-        train_loader=train_loader,
-        transform=self.transform,
+        images_path="dataset/images",
+        masks_path="dataset/masks",
+        transform=transform,
     )
 
     visualizer(
-        num_samples=20,
+        num_samples=10,
         save_path="augmentation_preview.png"
     )
 
-    
+
 if __name__ == "__main__":
     visualize_augmentation()
-    #main()
+    main()
+
     
     
 

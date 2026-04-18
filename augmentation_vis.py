@@ -1,13 +1,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import torch
 from pathlib import Path
 from PIL import Image
-import random
-
-
-import numpy as np
-import matplotlib.pyplot as plt
-import torch
 
 
 class AugmentationVis:
@@ -21,27 +16,31 @@ class AugmentationVis:
     4 → augmented mask
     """
 
-    def __init__(self, image_paths, mask_paths, transform, device="cpu"):
-        self.image_paths = image_paths
-        self.mask_paths = mask_paths
+    def __init__(self, images_path, masks_path, transform, device="cpu"):
+        self.images_path = sorted(list(Path(images_path).glob("*.png")))
+        self.masks_path = sorted(list(Path(masks_path).glob("*.png")))
         self.transform = transform
         self.device = device
+        self.img_size = 224  # Match your dataset
 
         self.mean = np.array([0.485, 0.456, 0.406], dtype=np.float32)
         self.std  = np.array([0.229, 0.224, 0.225], dtype=np.float32)
 
     # -------------------------
-    # load image (keep in 0-255 range)
+    # load image (keep in 0-255 range using PIL)
     # -------------------------
     def load_image(self, path):
         """Load image from path, returns numpy array in 0-255 range (uint8)"""
-        img = cv2.imread(path)
-        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        return img  # Keep as uint8, 0-255 range
+        img = Image.open(path).convert("RGB")
+        img = img.resize((self.img_size, self.img_size), Image.BILINEAR)
+        img = np.array(img)  # uint8, 0-255
+        return img
 
     def load_mask(self, path):
         """Load mask from path, returns binary numpy array (0 or 1)"""
-        mask = cv2.imread(path, cv2.IMREAD_GRAYSCALE)
+        mask = Image.open(path).convert("L")
+        mask = mask.resize((self.img_size, self.img_size), Image.NEAREST)
+        mask = np.array(mask)
         mask = (mask > 127).astype(np.float32)  # Binary mask: 0 or 1
         return mask
 
@@ -68,8 +67,11 @@ class AugmentationVis:
     # -------------------------
     def __call__(self, num_samples=4, save_path="aug_vis.png"):
         
+        # Handle case when num_samples > dataset size
+        num_samples = min(num_samples, len(self.images_path))
+        
         # Select random samples
-        indices = np.random.choice(len(self.image_paths), num_samples, replace=False)
+        indices = np.random.choice(len(self.images_path), num_samples, replace=False)
         
         fig, axes = plt.subplots(4, num_samples, figsize=(4 * num_samples, 10))
 
@@ -78,27 +80,24 @@ class AugmentationVis:
             # -------------------------
             # LOAD ORIGINAL (0-255 range)
             # -------------------------
-            img_path = self.image_paths[idx]
-            mask_path = self.mask_paths[idx]
+            img_path = self.images_path[idx]
+            mask_path = self.masks_path[idx]
             
             # Load original image (uint8, 0-255) and mask (0 or 1)
             orig_img = self.load_image(img_path)
             orig_mask = self.load_mask(mask_path)
             
-            # Original image for display (just convert to float [0,1] for matplotlib)
+            # Original image for display (convert to float [0,1] for matplotlib)
             orig_img_display = orig_img.astype(np.float32) / 255.0
             
             # -------------------------
             # APPLY AUGMENTATION (includes normalization)
             # -------------------------
             if self.transform:
-                # Transform expects image in 0-255 range (uint8) or 0-1 float?
-                # Albumentations with Normalize() typically expects uint8 or float in [0,1]
-                # Since we have uint8, convert to float32 [0,1] first
-                
+                # Pass uint8 image directly - Albumentations handles it
                 aug_img, aug_mask = self.transform(
-                    image=img_float,
-                    mask=orig_mask,
+                    image=orig_img,  # uint8, 0-255
+                    mask=orig_mask,  # float32, 0-1
                     mode="train"
                 )
                 
@@ -117,7 +116,7 @@ class AugmentationVis:
             aug_mask_viz = (aug_mask_viz > 0.5).astype(np.float32)
             
             # -------------------------
-            # row 1: Original image (0-255 range, displayed as [0,1])
+            # row 1: Original image
             # -------------------------
             axes[0, i].imshow(orig_img_display)
             axes[0, i].set_title("Original")
@@ -146,8 +145,6 @@ class AugmentationVis:
         
         plt.tight_layout()
         plt.savefig(save_path, dpi=300, bbox_inches="tight")
-        plt.close()
-        
  
 
 

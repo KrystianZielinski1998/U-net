@@ -2,6 +2,7 @@ import os
 import torch
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib.colors import ListedColormap
 
 
 IMAGENET_MEAN = np.array([0.485, 0.456, 0.406], dtype=np.float32)
@@ -47,6 +48,36 @@ class SegmentationVis:
         return [dataset[i] for i in indices]
 
     # -------------------------
+    # create colored mask visualization
+    # -------------------------
+    def _create_colored_mask(self, true_mask, pred_mask):
+        """
+        Create colored mask:
+        - Black: background (no mask)
+        - Red: only true mask (false negative)
+        - White: only prediction (false positive)  
+        - Green: overlap (true positive)
+        """
+        h, w = true_mask.shape
+        colored = np.zeros((h, w, 3), dtype=np.float32)
+        
+        # Background (both 0) - black (0,0,0) - already zeros
+        
+        # Only true mask (true=1, pred=0) - Red
+        only_true = (true_mask == 1) & (pred_mask == 0)
+        colored[only_true] = [1.0, 0.0, 0.0]  # Red
+        
+        # Only prediction (true=0, pred=1) - White
+        only_pred = (true_mask == 0) & (pred_mask == 1)
+        colored[only_pred] = [1.0, 1.0, 1.0]  # White
+        
+        # Overlap (both 1) - Green
+        overlap = (true_mask == 1) & (pred_mask == 1)
+        colored[overlap] = [0.0, 1.0, 0.0]  # Green
+        
+        return colored
+
+    # -------------------------
     # inference + prepare
     # -------------------------
     def _prepare(self, img, mask):
@@ -82,30 +113,34 @@ class SegmentationVis:
 
         for i, (img, mask) in enumerate(samples):
 
-            img, mask, pred = self._prepare(img, mask)
+            img, true_mask, pred_mask = self._prepare(img, mask)
+            
+            # Get current sample index
+            current_idx = (self.start_idx - num_samples + i) % len(self.val_loader.dataset)
 
             # -------------------------
             # row 1: image
             # -------------------------
             axes[0, i].imshow(img)
-            axes[0, i].set_title(f"Image {self.start_idx - num_samples + i}")
+            axes[0, i].set_title(f"Image {current_idx}")
             axes[0, i].axis("off")
 
             # -------------------------
             # row 2: overlay GT + pred
             # -------------------------
             axes[1, i].imshow(img)
-            axes[1, i].imshow(mask, alpha=0.3, cmap="Greens")
-            axes[1, i].imshow(pred, alpha=0.3, cmap="Reds")
+            axes[1, i].imshow(true_mask, alpha=0.3, cmap="Greens")
+            axes[1, i].imshow(pred_mask, alpha=0.3, cmap="Reds")
             axes[1, i].set_title("GT (green) vs Pred (red)")
             axes[1, i].axis("off")
 
             # -------------------------
-            # row 3: mask comparison
+            # row 3: colored mask comparison
+            # Black=bg, Red=only GT, White=only Pred, Green=overlap
             # -------------------------
-            combined = mask + 2 * pred
-            axes[2, i].imshow(combined, cmap="viridis")
-            axes[2, i].set_title("Mask comparison")
+            colored_mask = self._create_colored_mask(true_mask, pred_mask)
+            axes[2, i].imshow(colored_mask)
+            axes[2, i].set_title("Mask comparison (Red=GT, White=Pred, Green=both)")
             axes[2, i].axis("off")
 
         plt.tight_layout()
@@ -115,6 +150,7 @@ class SegmentationVis:
         # -------------------------
         save_path = os.path.join(self.save_dir, f"epoch_{epoch:04d}.png")
         plt.savefig(save_path, dpi=300, bbox_inches="tight")
+        plt.close()
 
 
 
