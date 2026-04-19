@@ -6,7 +6,7 @@ import numpy as np
 
 
 class DatasetReader(Dataset):
-    def __init__(self, images_path, masks_path, img_size=256):
+    def __init__(self, images_path, masks_path, img_size=224):
         self.images = sorted(Path(images_path).glob("*.png"))
         self.masks = sorted(Path(masks_path).glob("*.png"))
         self.img_size = img_size
@@ -106,10 +106,11 @@ class DataModule:
     # BUILD EVERYTHING
     # -------------------------
     def setup(self):
-        # 1. base dataset (RAW)
+        # 1. base dataset 
         base_dataset = DatasetReader(
             self.images_path,
-            self.masks_path
+            self.masks_path,
+            self.img_size
         )
 
         # 2. split
@@ -150,7 +151,9 @@ class DataModule:
 
         return self
 
-    # Get loaders
+    # -------------------------
+    # PUBLIC API
+    # -------------------------
     def get_loaders(self):
         return self.train_loader, self.val_loader
 
