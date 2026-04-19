@@ -17,8 +17,8 @@ from normalizer import ZScoreNormalizer
 from augmentations import Augmenter, AugmentationScheduler
 from dataset import DataModule
 
-from vis_augmentation import AugmentationVis
-from vis_segmentation import SegmentationVis
+from vis_augmentation import VisAugmentation
+from vis_segmentation import VisSegmentation
 
 from logging_config import setup_logging
 
@@ -41,8 +41,10 @@ def parse_args():
     parser.add_argument("--patience", type=int, default=20, help="Early stopping patience")
     parser.add_argument("--base_lr", type=float, default=5e-4, help="Initial learning rate")
     parser.add_argument("--min_lr", type=float, default=1e-7, help="Minimal lr")
-    parser.add_argument("--img_size", type=float, default=256, help="Image size")
+    parser.add_argument("--img_size", type=float, default=224, help="Image size")
     parser.add_argument("--no_aug_epochs", type=int, default=120, help="Number of epochs without augmentation")
+    parser.add_argument("--vis_augmentation", type=bool, default=True, help="Create and save fig of augmentation preview")
+    parser.add_argument("--vis_segmentation", type=bool, default=True, help="Create and save fig of segmentation preview during training")
     args = parser.parse_args()
 
     return args
@@ -67,6 +69,10 @@ def main():
     # Get augmenter 
     augmenter = Augmenter()
 
+    # Visualize augmentation preview
+    if args.vis_augmentation:
+        visualize_augmentation(augmenter)
+
     # Augmentation Scheduler
     augmentation_scheduler = AugmentationScheduler(
         max_epochs=args.max_epochs,
@@ -85,7 +91,7 @@ def main():
         num_workers=2   
     ).setup()
 
-    # 4. loaders
+    # Train and Val loaders
     train_loader, val_loader = data.get_loaders()
 
     trainer = Trainer(
@@ -103,16 +109,14 @@ def main():
 
     trainer()
 
-def visualize_augmentation():
+def visualize_augmentation(augmenter):
 
     args = parse_args()
-
-    
 
     visualizer = AugmentationVis(
         images_path="dataset/images",
         masks_path="dataset/masks",
-        transform=transform,
+        augmenter=augmenter,
     )
 
     visualizer(
@@ -122,8 +126,8 @@ def visualize_augmentation():
 
 
 if __name__ == "__main__":
-    #visualize_augmentation()
-    main()
+    visualize_augmentation()
+    #main()
     
     
 

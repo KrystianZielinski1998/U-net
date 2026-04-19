@@ -4,7 +4,7 @@ from pathlib import Path
 from PIL import Image
 
 
-class AugmentationVis:
+class VisAugmentation:
     def __init__(self, images_path, masks_path, augmenter=None):
         self.images_path = sorted(list(Path(images_path).glob("*.png")))
         self.masks_path = sorted(list(Path(masks_path).glob("*.png")))
@@ -34,9 +34,7 @@ class AugmentationVis:
             # AUGMENT
             # -------------------------
             if self.augmenter:
-                aug = self.augmenter(image=orig_img, mask=orig_mask)
-                aug_img = aug["image"]
-                aug_mask = aug["mask"]
+                aug_img, aug_mask= self.augmenter(image=orig_img, mask=orig_mask)
             else:
                 aug_img = orig_img
                 aug_mask = orig_mask

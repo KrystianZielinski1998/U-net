@@ -8,7 +8,7 @@ from torch.optim.lr_scheduler import CosineAnnealingLR
 import torch.optim as optim
 from torchmetrics.classification import BinaryJaccardIndex, BinaryF1Score
 from tabulate import tabulate
-from segmentation_vis import SegmentationVis
+from vis_segmentation import VisSegmentation
 import os
 
 # ----------------------------
@@ -309,8 +309,8 @@ class Trainer:
 
             self.log_metrics(train_metrics, eval_metrics)
             
-            #if (epoch+1) % 1 == 0:
-                #self.vis(model=self.model, epoch=epoch+1, num_samples=6)
+            if (epoch+1) % 1 == 0:
+                self.vis(model=self.model, epoch=epoch+1, num_samples=8)
 
             self.scheduler.step()
             self.early_stopping(eval_metrics.dice_torch, self.model)

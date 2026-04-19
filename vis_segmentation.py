@@ -4,12 +4,13 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap
 
+import os
+import numpy as np
+import torch
+import matplotlib.pyplot as plt
 
-IMAGENET_MEAN = np.array([0.485, 0.456, 0.406], dtype=np.float32)
-IMAGENET_STD  = np.array([0.229, 0.224, 0.225], dtype=np.float32)
 
-
-class SegmentationVis:
+class VisSegmentation:
     def __init__(self, val_loader, device, save_dir="vis"):
         self.val_loader = val_loader
         self.device = device
@@ -19,66 +20,55 @@ class SegmentationVis:
         os.makedirs(self.save_dir, exist_ok=True)
 
     # -------------------------
-    # denormalization
-    # -------------------------
-    def denormalize(self, img):
-        img = img.astype(np.float32)
-
-        # CHW → HWC
-        if img.ndim == 3 and img.shape[0] in [1, 3]:
-            img = np.transpose(img, (1, 2, 0))
-
-        img = img * IMAGENET_STD + IMAGENET_MEAN
-        return np.clip(img, 0, 1)
-
-    # -------------------------
-    # sequential sampling
+    # sequential sampling (wrap-safe)
     # -------------------------
     def _get_sequential_samples(self, num_samples):
         dataset = self.val_loader.dataset
         n = len(dataset)
 
-        indices = []
-        for i in range(num_samples):
-            idx = (self.start_idx + i) % n
-            indices.append(idx)
-
+        indices = [(self.start_idx + i) % n for i in range(num_samples)]
         self.start_idx = (self.start_idx + num_samples) % n
 
         return [dataset[i] for i in indices]
 
     # -------------------------
-    # create colored mask visualization
+    # ALWAYS safe visualization
+    # -------------------------
+    def to_display(self, img):
+        """
+        Converts ANY input (0-255, 0-1, z-score, tensor) → [0,1]
+        """
+
+        if isinstance(img, torch.Tensor):
+            img = img.detach().cpu().numpy()
+
+        img = img.squeeze().astype(np.float32)
+
+        # always normalize for display
+        img = img - img.min()
+        img = img / (img.max() + 1e-8)
+
+        return img
+
+    # -------------------------
+    # TP / FP / FN visualization
     # -------------------------
     def _create_colored_mask(self, true_mask, pred_mask):
-        """
-        Create colored mask:
-        - Black: background (no mask)
-        - Red: only true mask (false negative)
-        - White: only prediction (false positive)  
-        - Green: overlap (true positive)
-        """
         h, w = true_mask.shape
         colored = np.zeros((h, w, 3), dtype=np.float32)
-        
-        # Background (both 0) - black (0,0,0) - already zeros
-        
-        # Only true mask (true=1, pred=0) - Red
-        only_true = (true_mask == 1) & (pred_mask == 0)
-        colored[only_true] = [1.0, 0.0, 0.0]  # Red
-        
-        # Only prediction (true=0, pred=1) - White
-        only_pred = (true_mask == 0) & (pred_mask == 1)
-        colored[only_pred] = [1.0, 1.0, 1.0]  # White
-        
-        # Overlap (both 1) - Green
-        overlap = (true_mask == 1) & (pred_mask == 1)
-        colored[overlap] = [0.0, 1.0, 0.0]  # Green
-        
+
+        tp = (true_mask == 1) & (pred_mask == 1)
+        fp = (true_mask == 0) & (pred_mask == 1)
+        fn = (true_mask == 1) & (pred_mask == 0)
+
+        colored[tp] = [0.0, 1.0, 0.0]   # Green
+        colored[fp] = [1.0, 0.0, 0.0]   # Red
+        colored[fn] = [1.0, 1.0, 1.0]   # White
+
         return colored
 
     # -------------------------
-    # inference + prepare
+    # model inference + prep
     # -------------------------
     def _prepare(self, img, mask):
         img_in = img.to(self.device).unsqueeze(0)
@@ -92,12 +82,12 @@ class SegmentationVis:
         mask = mask.squeeze().cpu().numpy()
 
         img = img_in.squeeze().cpu().numpy()
-        img = self.denormalize(img)
+        img = self.to_display(img)
 
         return img, mask, pred
 
     # -------------------------
-    # main
+    # main visualization
     # -------------------------
     def __call__(self, model, epoch, num_samples=6):
 
@@ -114,41 +104,37 @@ class SegmentationVis:
         for i, (img, mask) in enumerate(samples):
 
             img, true_mask, pred_mask = self._prepare(img, mask)
-            
-            # Get current sample index
-            current_idx = (self.start_idx - num_samples + i) % len(self.val_loader.dataset)
 
             # -------------------------
-            # row 1: image
+            # Row 1: Image
             # -------------------------
-            axes[0, i].imshow(img)
-            axes[0, i].set_title(f"Image {current_idx}")
+            axes[0, i].imshow(img, cmap="gray", vmin=0, vmax=1)
+            axes[0, i].set_title("Image")
             axes[0, i].axis("off")
 
             # -------------------------
-            # row 2: overlay GT + pred
+            # Row 2: Overlay GT + Pred
             # -------------------------
-            axes[1, i].imshow(img)
-            axes[1, i].imshow(true_mask, alpha=0.3, cmap="Greens")
-            axes[1, i].imshow(pred_mask, alpha=0.3, cmap="Reds")
-            axes[1, i].set_title("GT (green) vs Pred (red)")
+            axes[1, i].imshow(img, cmap="gray", vmin=0, vmax=1)
+
+            axes[1, i].imshow(true_mask, alpha=0.5, cmap="gray")
+            axes[1, i].imshow(pred_mask, alpha=0.5, cmap="Reds")
+
+            axes[1, i].set_title("GT (white) vs Pred (Red)")
             axes[1, i].axis("off")
 
             # -------------------------
-            # row 3: colored mask comparison
-            # Black=bg, Red=only GT, White=only Pred, Green=overlap
+            # Row 3: TP / FP / FN map
             # -------------------------
             colored_mask = self._create_colored_mask(true_mask, pred_mask)
+
             axes[2, i].imshow(colored_mask)
-            axes[2, i].set_title("Mask comparison (Red=GT, White=Pred, Green=both)")
+            axes[2, i].set_title("TP=Green | FP=Red | FN=White")
             axes[2, i].axis("off")
 
         plt.tight_layout()
 
-        # -------------------------
-        # SAVE ONLY (no show)
-        # -------------------------
-        save_path = os.path.join(self.save_dir, f"epoch_{epoch:04d}.png")
+        save_path = os.path.join(self.save_dir, f"epoch_{epoch:03d}.png")
         plt.savefig(save_path, dpi=300, bbox_inches="tight")
         plt.close()
 
