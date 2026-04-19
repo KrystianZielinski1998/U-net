@@ -88,7 +88,7 @@ def main():
         normalizer=normalizer,
         augmenter=augmenter,
         augmentation_scheduler=augmentation_scheduler,
-        num_workers=2   
+        num_workers=4   
     ).setup()
 
     # Train and Val loaders
@@ -126,8 +126,7 @@ def visualize_augmentation(augmenter):
 
 
 if __name__ == "__main__":
-    visualize_augmentation()
-    #main()
+   main()
     
     
 

@@ -4,11 +4,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap
 
-import os
-import numpy as np
-import torch
-import matplotlib.pyplot as plt
-
 
 class VisSegmentation:
     def __init__(self, val_loader, device, save_dir="vis"):
@@ -117,8 +112,8 @@ class VisSegmentation:
             # -------------------------
             axes[1, i].imshow(img, cmap="gray", vmin=0, vmax=1)
 
-            axes[1, i].imshow(true_mask, alpha=0.5, cmap="gray")
-            axes[1, i].imshow(pred_mask, alpha=0.5, cmap="Reds")
+            axes[1, i].imshow(true_mask, alpha=0.4, cmap="gray")
+            axes[1, i].imshow(pred_mask, alpha=0.4, cmap="Reds")
 
             axes[1, i].set_title("GT (white) vs Pred (Red)")
             axes[1, i].axis("off")
@@ -136,7 +131,6 @@ class VisSegmentation:
 
         save_path = os.path.join(self.save_dir, f"epoch_{epoch:03d}.png")
         plt.savefig(save_path, dpi=300, bbox_inches="tight")
-        plt.close()
 
 
 

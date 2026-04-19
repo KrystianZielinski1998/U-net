@@ -65,6 +65,7 @@ class DataModule:
         self,
         images_path,
         masks_path,
+        img_size,
         batch_size=16,
         val_split=0.1,
         normalizer=None,
@@ -75,6 +76,7 @@ class DataModule:
     ):
         self.images_path = images_path
         self.masks_path = masks_path
+        self.img_size = img_size
         self.batch_size = batch_size
         self.val_split = val_split
 
@@ -148,9 +150,7 @@ class DataModule:
 
         return self
 
-    # -------------------------
-    # PUBLIC API
-    # -------------------------
+    # Get loaders
     def get_loaders(self):
         return self.train_loader, self.val_loader
 

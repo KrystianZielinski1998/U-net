@@ -159,29 +159,37 @@ class MetricsAccumulator:
 # ----------------------------
 # Loss
 # ----------------------------
+def dice_loss(logits, targets, eps=1e-6):
+    probs = torch.sigmoid(logits)
+
+    probs = probs.view(probs.size(0), -1)
+    targets = targets.view(targets.size(0), -1)
+
+    intersection = (probs * targets).sum(dim=1)
+    union = probs.sum(dim=1) + targets.sum(dim=1)
+
+    dice = (2 * intersection + eps) / (union + eps)
+
+    return 1 - dice.mean()
+
+
 class BCEDiceLoss(nn.Module):
-    def __init__(self, bce_weight=0.5):
+    def __init__(self, bce_weight=0.3):
         super().__init__()
         self.bce = nn.BCEWithLogitsLoss()
         self.bce_weight = bce_weight
 
     def forward(self, logits, masks):
-        """
-        Args:
-            logits (): [B, 1, H, W] from the model
-            masks (): [B, H, W] ground truth
-        """
-        # Add channel dimension to masks to match logits
+
         masks = masks.unsqueeze(1).float()  # [B,1,H,W]
 
-        # Sigmoid for Dice
-        probs = torch.sigmoid(logits)
-        dice = dice_coeff(probs, masks)  
+        bce_loss = self.bce(logits, masks)
+        d_loss = dice_loss(logits, masks)
 
-        # BCE loss
-        bce = self.bce(logits, masks)
+        # optional: slightly favor Dice in medical tasks
+        loss = self.bce_weight * bce_loss + (1 - self.bce_weight) * d_loss
 
-        return self.bce_weight * bce + (1 - self.bce_weight) * (1 - dice)
+        return loss
 
 # ----------------------------
 # Trainer
@@ -217,7 +225,8 @@ class Trainer:
         self.scheduler = CosineAnnealingLR(self.optimizer, T_max=self.max_epochs, eta_min=self.min_lr)
         self.early_stopping = EarlyStopping(patience=self.patience, min_delta=0.0, verbose=True)
         self.augmentation_scheduler = augmentation_scheduler
-        self.vis = SegmentationVis(self.val_loader, self.device)
+        
+        self.vis = VisSegmentation(self.val_loader, self.device)
 
         self.logger = logging.getLogger(__name__)
         
@@ -310,7 +319,7 @@ class Trainer:
             self.log_metrics(train_metrics, eval_metrics)
             
             if (epoch+1) % 1 == 0:
-                self.vis(model=self.model, epoch=epoch+1, num_samples=8)
+                self.vis(model=self.model, epoch=epoch+1, num_samples=6)
 
             self.scheduler.step()
             self.early_stopping(eval_metrics.dice_torch, self.model)
