@@ -67,9 +67,9 @@ class DataModule:
         masks_path,
         batch_size=16,
         val_split=0.1,
-        normalizer=None
+        normalizer=None,
         augmenter=None,
-        augmentation_scheduler=None
+        augmentation_scheduler=None,
         num_workers=2,
         seed=42
     ):
@@ -153,6 +153,7 @@ class DataModule:
     # -------------------------
     def get_loaders(self):
         return self.train_loader, self.val_loader
+
 
 
 

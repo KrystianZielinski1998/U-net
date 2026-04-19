@@ -10,16 +10,17 @@ from pathlib import Path
 import logging
 import wandb
 
-from dataset import SegmentationDataset, GetLoaders
-from augmentation_vis import AugmentationVis
-from segmentation_vis import SegmentationVis
 from train import Trainer
-from logging_config import setup_logging
-
 from unet import UNetModel 
+
 from normalizer import ZScoreNormalizer
 from augmentations import Augmenter, AugmentationScheduler
 from dataset import DataModule
+
+from vis_augmentation import AugmentationVis
+from vis_segmentation import SegmentationVis
+
+from logging_config import setup_logging
 
 def parse_args():
     """
@@ -38,9 +39,10 @@ def parse_args():
     parser.add_argument("--batch_size", type=int, default=16, help="Batch size for training and validation")
     parser.add_argument("--max_epochs", type=int, default=120, help="Maximum number of epochs")
     parser.add_argument("--patience", type=int, default=20, help="Early stopping patience")
-    parser.add_argument("--base_lr", type=float, default=5e-3, help="Initial learning rate")
+    parser.add_argument("--base_lr", type=float, default=5e-4, help="Initial learning rate")
     parser.add_argument("--min_lr", type=float, default=1e-7, help="Minimal lr")
-    parser.add_argument("--no_aug_epochs", type=int, default=20, help="Number of epochs without augmentation")
+    parser.add_argument("--img_size", type=float, default=256, help="Image size")
+    parser.add_argument("--no_aug_epochs", type=int, default=120, help="Number of epochs without augmentation")
     args = parser.parse_args()
 
     return args
@@ -75,8 +77,11 @@ def main():
     data = DataModule(
         images_path="dataset/images",
         masks_path="dataset/masks",
+        img_size=args.img_size
         batch_size=args.batch_size,
+        normalizer=normalizer,
         augmenter=augmenter,
+        augmentation_scheduler=augmentation_scheduler,
         num_workers=2   
     ).setup()
 
@@ -117,9 +122,8 @@ def visualize_augmentation():
 
 
 if __name__ == "__main__":
-    visualize_augmentation()
+    #visualize_augmentation()
     main()
-
     
     
 

@@ -1,6 +1,6 @@
 import albumentations as A
 import cv2
-
+from torch.utils.data import Dataset, DataLoader, Subset
 
 class ZScoreNormalizer:
     def __init__(self):
@@ -8,7 +8,7 @@ class ZScoreNormalizer:
         self.std = None
         self.eps = 1e-8
 
-    def fit(self, dataset, batch_size=32):
+    def fit(self, dataset, batch_size=16):
         loader = DataLoader(dataset, batch_size=batch_size, shuffle=False)
 
         total_sum = 0.0

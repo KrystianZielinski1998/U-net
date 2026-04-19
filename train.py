@@ -9,8 +9,6 @@ import torch.optim as optim
 from torchmetrics.classification import BinaryJaccardIndex, BinaryF1Score
 from tabulate import tabulate
 from segmentation_vis import SegmentationVis
-from augmentations import AugmentationScheduler
-from dataset import SegmentationDataset, GetLoaders
 import os
 
 # ----------------------------
@@ -218,7 +216,7 @@ class Trainer:
         self.optimizer = optim.AdamW(model.parameters(), lr=base_lr)
         self.scheduler = CosineAnnealingLR(self.optimizer, T_max=self.max_epochs, eta_min=self.min_lr)
         self.early_stopping = EarlyStopping(patience=self.patience, min_delta=0.0, verbose=True)
-
+        self.augmentation_scheduler = augmentation_scheduler
         self.vis = SegmentationVis(self.val_loader, self.device)
 
         self.logger = logging.getLogger(__name__)
@@ -311,13 +309,15 @@ class Trainer:
 
             self.log_metrics(train_metrics, eval_metrics)
             
-            if (epoch+1) % 1 == 0:
-                self.vis(model=self.model, epoch=epoch+1, num_samples=6)
+            #if (epoch+1) % 1 == 0:
+                #self.vis(model=self.model, epoch=epoch+1, num_samples=6)
 
             self.scheduler.step()
             self.early_stopping(eval_metrics.dice_torch, self.model)
             if self.early_stopping.early_stop:
                 break
+
+            
 
             
 

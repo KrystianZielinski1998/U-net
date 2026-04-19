@@ -6,7 +6,7 @@ class Augmenter:
     def __init__(self, scheduler=None):
         self.scheduler = scheduler
 
-        self.pipeline = A.Compose([
+        self.augmentation = A.Compose([
             A.HorizontalFlip(p=0.5),
 
             A.OneOf([
@@ -26,7 +26,7 @@ class Augmenter:
         if self.scheduler is not None and not self.scheduler.is_active():
             return image, mask
 
-        augmented = self.pipeline(image=image, mask=mask)
+        augmented = self.augmentation(image=image, mask=mask)
         return augmented["image"], augmented["mask"]
 
 class AugmentationScheduler:
