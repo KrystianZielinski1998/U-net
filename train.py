@@ -189,32 +189,35 @@ class BCEDiceLoss(nn.Module):
 # Trainer
 # ----------------------------
 class Trainer:
-    def __init__(self, model, device, max_epochs, patience, batch_size, base_lr, min_lr, no_aug_epochs):
+    def __init__(self, 
+        model, 
+        device, 
+        train_loader,
+        val_loader,
+        max_epochs, 
+        patience, 
+        batch_size, 
+        base_lr, 
+        min_lr, 
+        augmentation_scheduler
+    ):
+
         self.model = model.to(device)
-        
         self.device = device
+
+        self.train_loader = train_loader
+        self.val_loader = val_loader
+
         self.max_epochs = max_epochs
         self.patience = patience
         self.batch_size = batch_size
         self.base_lr = base_lr
         self.min_lr = min_lr
-        self.no_aug_epochs = no_aug_epochs
 
         self.criterion = BCEDiceLoss()
         self.optimizer = optim.AdamW(model.parameters(), lr=base_lr)
         self.scheduler = CosineAnnealingLR(self.optimizer, T_max=self.max_epochs, eta_min=self.min_lr)
         self.early_stopping = EarlyStopping(patience=self.patience, min_delta=0.0, verbose=True)
-        self.augmentation_scheduler = AugmentationScheduler(self.max_epochs, self.no_aug_epochs)
-
-        self.get_loaders = GetLoaders(
-            images_path="dataset/images",
-            masks_path="dataset/masks",
-            batch_size=self.batch_size,
-            val_split=0.1, 
-            transform=self.augmentation_scheduler
-        )
-
-        self.train_loader, self.val_loader = self.get_loaders()
 
         self.vis = SegmentationVis(self.val_loader, self.device)
 

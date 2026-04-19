@@ -1,0 +1,44 @@
+import albumentations as A
+import cv2
+
+
+class ZScoreNormalizer:
+    def __init__(self):
+        self.mean = None
+        self.std = None
+        self.eps = 1e-8
+
+    def fit(self, dataset, batch_size=32):
+        loader = DataLoader(dataset, batch_size=batch_size, shuffle=False)
+
+        total_sum = 0.0
+        total_sum_sq = 0.0
+        total_pixels = 0
+
+        for imgs, _ in loader:
+            imgs = imgs / 255.0
+
+            total_sum += imgs.sum()
+            total_sum_sq += (imgs ** 2).sum()
+            total_pixels += imgs.numel()
+
+        self.mean = total_sum / total_pixels
+        self.std = (total_sum_sq / total_pixels - self.mean ** 2) ** 0.5
+
+        return self
+
+    def __call__(self, img):
+        img = img / 255.0
+        return (img - self.mean) / (self.std + self.eps)
+
+
+
+
+    
+
+
+
+            
+    
+    
+    

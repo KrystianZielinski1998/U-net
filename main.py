@@ -15,8 +15,11 @@ from augmentation_vis import AugmentationVis
 from segmentation_vis import SegmentationVis
 from train import Trainer
 from logging_config import setup_logging
+
 from unet import UNetModel 
-from augmentations import AugmentationScheduler
+from normalizer import ZScoreNormalizer
+from augmentations import Augmenter, AugmentationScheduler
+from dataset import DataModule
 
 def parse_args():
     """
@@ -56,15 +59,41 @@ def main():
     # Get U-Net model
     model = UNetModel()
     
+    # Get normalizer
+    normalizer = ZScoreNormalizer()
+
+    # Get augmenter 
+    augmenter = Augmenter()
+
+    # Augmentation Scheduler
+    augmentation_scheduler = AugmentationScheduler(
+        max_epochs=args.max_epochs,
+        no_aug_epochs=args.no_aug_epochs
+    )
+
+    # Datamodule
+    data = DataModule(
+        images_path="dataset/images",
+        masks_path="dataset/masks",
+        batch_size=args.batch_size,
+        augmenter=augmenter,
+        num_workers=2   
+    ).setup()
+
+    # 4. loaders
+    train_loader, val_loader = data.get_loaders()
+
     trainer = Trainer(
             model=model,
             device=device,
+            train_loader=train_loader,
+            val_loader=val_loader,
             max_epochs=args.max_epochs,
             patience=args.patience,
             batch_size=args.batch_size,
             base_lr=args.base_lr,
             min_lr=args.min_lr,
-            no_aug_epochs=args.no_aug_epochs
+            augmentation_scheduler=augmentation_scheduler
         )
 
     trainer()
@@ -73,7 +102,7 @@ def visualize_augmentation():
 
     args = parse_args()
 
-    transform = AugmentationScheduler(args.max_epochs, args.no_aug_epochs)
+    
 
     visualizer = AugmentationVis(
         images_path="dataset/images",
