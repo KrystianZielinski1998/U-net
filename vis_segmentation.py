@@ -6,8 +6,8 @@ from matplotlib.colors import ListedColormap
 
 
 class VisSegmentation:
-    def __init__(self, val_dataset, device, save_dir="vis"):
-        self.val_dataset = val_dataset
+    def __init__(self, val_loader, device, save_dir="vis"):
+        self.val_dataset = val_loader.dataset   
         self.device = device
         self.save_dir = save_dir
 

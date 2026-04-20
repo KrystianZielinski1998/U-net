@@ -207,7 +207,7 @@ class Trainer:
             
             if (epoch+1) % 1 == 0:
                 vis_fig = self.vis(model=self.model, epoch=epoch+1, num_samples=8)
-                self.wandb_logger(vis_fig, epoch+1)
+                self.wandb_logger.log_fig(vis_fig, epoch+1)
 
             self.scheduler.step()
             self.early_stopping(val_metrics.dice_torch, self.model)
