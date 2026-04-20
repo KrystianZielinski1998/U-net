@@ -159,7 +159,7 @@ class Trainer:
                 # Calculate losses
                 bcedice_loss_val = self.criterion(logits, masks)
                 dice_loss_val = dice_loss(logits, masks)
-                iou_loss_val = dice_iou(logits, masks)
+                iou_loss_val = iou_loss(logits, masks)
 
                 # Predictions for metrics
                 probs = torch.sigmoid(logits)
