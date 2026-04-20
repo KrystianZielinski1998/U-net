@@ -37,12 +37,12 @@ def parse_args():
     
     # Training hyperparameters
     parser.add_argument("--batch_size", type=int, default=16, help="Batch size for training and validation")
-    parser.add_argument("--max_epochs", type=int, default=120, help="Maximum number of epochs")
+    parser.add_argument("--max_epochs", type=int, default=3, help="Maximum number of epochs")
     parser.add_argument("--patience", type=int, default=20, help="Early stopping patience")
     parser.add_argument("--base_lr", type=float, default=5e-4, help="Initial learning rate")
     parser.add_argument("--min_lr", type=float, default=1e-7, help="Minimal lr")
     parser.add_argument("--img_size", type=float, default=224, help="Image size")
-    parser.add_argument("--no_aug_epochs", type=int, default=120, help="Number of epochs without augmentation")
+    parser.add_argument("--no_aug_epochs", type=int, default=20, help="Number of epochs without augmentation")
     parser.add_argument("--vis_augmentation", type=bool, default=True, help="Create and save fig of augmentation preview")
     parser.add_argument("--vis_segmentation", type=bool, default=True, help="Create and save fig of segmentation preview during training")
     args = parser.parse_args()

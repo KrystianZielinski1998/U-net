@@ -4,8 +4,8 @@ class WandbLogger:
     def __init__(self, args):
         wandb.init(
             project="Brain Tumor Segmentation",
-            group="group",
-            name="name",
+            group="group 1",
+            name="1",
             config={
                 "max_epochs": args.max_epochs,
                 "patience": args.patience,
@@ -30,25 +30,24 @@ class WandbLogger:
         artifact.add_file(model_path)
         wandb.log_artifact(artifact)
 
-    def log_line_plot(self, y1, y2, name="line_plot", x_axis_name="x_axis", y_axis_name="y_axis"):
-        """ Log line plots with shared x axis and custom axis names. """
+    def log_metrics(self, y1, y2, name):
+  
+      wandb.define_metric("epoch")
+      wandb.define_metric(f"train/{name}", step_metric="epoch")
+      wandb.define_metric(f"val/{name}", step_metric="epoch")
+      
+      epochs = list(range(1, len(y1) + 1))
+      
+      for epoch, train, val in zip(epochs, y1, y2):
+       
+          wandb.log({
+              "epoch": epoch,         
+              f"train/{name}": train,       
+              f"val/{name}": val
+          })
 
-        x = list(range(1, len(y1) + 1))
-
-        table = wandb.Table(columns=[x_axis_name, y_axis_name, "series"])
-
-        for i, (a, b) in enumerate(zip(y1, y2)):
-            table.add_data(x[i], a, "train")
-            table.add_data(x[i], b, "val")
-
-        wandb.log({
-            name: wandb.plot.line(
-                table,
-                x_axis_name,
-                y_axis_name,
-                title=name
-            )
-        })
+    def finish(self):
+        wandb.finish()
 
 
 
