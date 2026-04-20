@@ -88,8 +88,7 @@ class VisSegmentation:
 
     def _create_colored_mask(self, true_mask, pred_mask):
         """Create TP/FP/FN RGB mask."""
-        import numpy as np
-
+   
         tp = (true_mask == 1) & (pred_mask == 1)
         fp = (true_mask == 0) & (pred_mask == 1)
         fn = (true_mask == 1) & (pred_mask == 0)
