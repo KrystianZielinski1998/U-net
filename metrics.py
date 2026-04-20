@@ -16,12 +16,11 @@ class Metrics:
     
 @dataclass
 class MetricsHistory:
-    bcedice_loss: list[float]
-    dice_loss: list[float]
-    iou_loss: list[float]
-    dice_metric: list[float]
-    iou_metric: list[float]
-
+    bcedice_loss: list[float] = field(default_factory=list)
+    dice_loss: list[float] = field(default_factory=list)
+    iou_loss: list[float] = field(default_factory=list)
+    dice_metric: list[float] = field(default_factory=list)
+    iou_metric: list[float] = field(default_factory=list)
     
 # ----------------------------
 # IoU Loss
