@@ -131,7 +131,7 @@ class Trainer:
 
             # Backward
             self.optimizer.zero_grad()
-            bcedice_loss.backward()
+            bcedice_loss_train.backward()
             self.optimizer.step()
 
             # Predictions for metrics

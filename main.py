@@ -95,7 +95,7 @@ def main():
     train_loader, val_loader = data.get_loaders()
 
     # Wandb logger
-    wandb_logger = WandbLogger()
+    wandb_logger = WandbLogger(args)
 
     trainer = Trainer(
             model=model,

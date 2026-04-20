@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from torchmetrics.classification import BinaryJaccardIndex, BinaryF1Score
 
 # ----------------------------
