@@ -1,8 +1,19 @@
 import wandb 
 
 class WandbLogger:
-    def __init__(self):
-        pass
+    def __init__(self, args):
+        wandb.init(
+            project="Brain Tumor Segmentation",
+            group="group",
+            name="name",
+            config={
+                "max_epochs": args.max_epochs,
+                "patience": args.patience,
+                "batch_size": args.batch_size,
+                "base_lr": args.base_lr,
+                "min_lr": args.min_lr,
+            }
+        )
 
     def log_fig(self, fig, epoch):
         """ Log figure. """
@@ -21,8 +32,6 @@ class WandbLogger:
 
     def log_line_plot(self, y1, y2, name="line_plot", x_axis_name="x_axis", y_axis_name="y_axis"):
         """ Log line plots with shared x axis and custom axis names. """
-
-        assert len(y1) == len(y2), 
 
         x = list(range(1, len(y1) + 1))
 

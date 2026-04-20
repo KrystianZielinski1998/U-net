@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap
 
 
-class Visualizer:
+class VisSegmentation:
     def __init__(self, val_dataset, device, save_dir):
         self.val_dataset = val_dataset
         self.device = device

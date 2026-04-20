@@ -19,7 +19,7 @@ from dataset import DataModule
 
 from vis_augmentation import VisAugmentation
 from vis_segmentation import VisSegmentation
-
+from wandb_logger import WandbLogger
 from logging_config import setup_logging
 
 def parse_args():
@@ -78,12 +78,12 @@ def main():
         max_epochs=args.max_epochs,
         no_aug_epochs=args.no_aug_epochs
     )
-
+    
     # Datamodule
     data = DataModule(
         images_path="dataset/images",
         masks_path="dataset/masks",
-        img_size=args.img_size
+        img_size=args.img_size,
         batch_size=args.batch_size,
         normalizer=normalizer,
         augmenter=augmenter,
@@ -93,6 +93,9 @@ def main():
 
     # Train and Val loaders
     train_loader, val_loader = data.get_loaders()
+
+    # Wandb logger
+    wandb_logger = WandbLogger()
 
     trainer = Trainer(
             model=model,
@@ -104,7 +107,8 @@ def main():
             batch_size=args.batch_size,
             base_lr=args.base_lr,
             min_lr=args.min_lr,
-            augmentation_scheduler=augmentation_scheduler
+            augmentation_scheduler=augmentation_scheduler,
+            wandb_logger=wandb_logger
         )
 
     trainer()
@@ -113,7 +117,7 @@ def visualize_augmentation(augmenter):
 
     args = parse_args()
 
-    visualizer = AugmentationVis(
+    visualizer = VisAugmentation(
         images_path="dataset/images",
         masks_path="dataset/masks",
         augmenter=augmenter,

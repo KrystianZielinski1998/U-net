@@ -8,9 +8,8 @@ from tqdm import tqdm
 from torch.optim.lr_scheduler import CosineAnnealingLR
 from tabulate import tabulate
 
-from metrics import dice_loss, dice_iou, BCEDiceLoss, MetricsAccumulator
+from metrics import dice_loss, iou_loss, BCEDiceLoss, MetricsAccumulator
 from vis_segmentation import VisSegmentation
-from wand_logger import WandbLogger
 
 # ----------------------------
 # Early Stopping
@@ -75,7 +74,8 @@ class Trainer:
         batch_size, 
         base_lr, 
         min_lr, 
-        augmentation_scheduler
+        augmentation_scheduler,
+        wandb_logger
     ):
 
         self.model = model.to(device)
@@ -103,7 +103,7 @@ class Trainer:
         self.logger = logging.getLogger(__name__)
         self.log_model_info()
 
-        self.wandb_logger = WandbLogger()
+        self.wandb_logger = wandb_logger
 
     def log_model_info(self):
         self.logger.info(self.model)
@@ -127,7 +127,7 @@ class Trainer:
             # Calculate losses
             bcedice_loss_train = self.criterion(logits, masks)
             dice_loss_train = dice_loss(logits, masks)
-            iou_loss_train = dice_iou(logits, masks)
+            iou_loss_train = iou_loss(logits, masks)
 
             # Backward
             self.optimizer.zero_grad()
@@ -141,9 +141,9 @@ class Trainer:
             preds = preds.squeeze(1)
             masks = masks.squeeze(1)
 
-            metrics.update(bcedice_loss_train, dice_loss_train, iou_loss_train, preds, masks)
+            self.metrics.update(bcedice_loss_train, dice_loss_train, iou_loss_train, preds, masks)
 
-        return metrics.compute()
+        return self.metrics.compute()
 
     def evaluate(self):
         self.model.eval()
@@ -168,9 +168,9 @@ class Trainer:
                 preds = preds.squeeze(1)
                 masks = masks.squeeze(1)
 
-                metrics.update(bcedice_loss_val, dice_loss_val, iou_loss_val, preds, masks)
+                self.metrics.update(bcedice_loss_val, dice_loss_val, iou_loss_val, preds, masks)
 
-        return metrics.compute()
+        return self.metrics.compute()
 
     def log_metrics(self, train_metrics, eval_metrics):
     
@@ -200,14 +200,14 @@ class Trainer:
             train_metrics = self.train_one_epoch()
             eval_metrics = self.evaluate()
 
-            metrics.store(train_metrics, mode="train")
-            metrics.store(val_metrics, mode="val")
+            self.metrics.store(train_metrics, mode="train")
+            self.metrics.store(val_metrics, mode="val")
 
             self.log_metrics(train_metrics, eval_metrics)
             
             if (epoch+1) % 1 == 0:
                 vis_fig = self.vis(model=self.model, epoch=epoch+1, num_samples=8)
-                self.wandb_logger(vis_fig, epoch)
+                self.wandb_logger(vis_fig, epoch+1)
 
             self.scheduler.step()
             self.early_stopping(eval_metrics.dice_torch, self.model)
@@ -216,11 +216,11 @@ class Trainer:
 
         self.wandb_logger.log_artifact("checkpoints/best_model.pth", "best model")
 
-        self.wandb_logger.log_line_plot(metrics.history_train.bcedice_loss, metrics.history_val.bcedice_loss, name="BCE + Dice Loss", x_axis_name="epoch", y_axis_name="BCE + Dice Loss") 
-        self.wandb_logger.log_line_plot(metrics.history_train.dice_loss, metrics.history_val.dice_loss, name="Dice Loss", x_axis_name="epoch", y_axis_name="Dice Loss") 
-        self.wandb_logger.log_line_plot(metrics.history_train.iou_loss, metrics.history_val.iou_loss, name="IoU Loss", x_axis_name="epoch", y_axis_name="IoU Loss")
-        self.wandb_logger.log_line_plot(metrics.history_train.dice_metric, metrics.history_val.dice_metric, name="Dice Metric", x_axis_name="epoch", y_axis_name="Dice Metric")
-        self.wandb_logger.log_line_plot(metrics.history_train.iou_metric, metrics.history_val.iou_metric, name="IoU Metric", x_axis_name="epoch", y_axis_name="IoU Metric")
+        self.wandb_logger.log_line_plot(self.metrics.history_train.bcedice_loss, self.metrics.history_val.bcedice_loss, name="BCE + Dice Loss", x_axis_name="epoch", y_axis_name="BCE + Dice Loss") 
+        self.wandb_logger.log_line_plot(self.metrics.history_train.dice_loss, self.metrics.history_val.dice_loss, name="Dice Loss", x_axis_name="epoch", y_axis_name="Dice Loss") 
+        self.wandb_logger.log_line_plot(self.metrics.history_train.iou_loss, self.metrics.history_val.iou_loss, name="IoU Loss", x_axis_name="epoch", y_axis_name="IoU Loss")
+        self.wandb_logger.log_line_plot(self.metrics.history_train.dice_metric, self.metrics.history_val.dice_metric, name="Dice Metric", x_axis_name="epoch", y_axis_name="Dice Metric")
+        self.wandb_logger.log_line_plot(self.metrics.history_train.iou_metric, self.metrics.history_val.iou_metric, name="IoU Metric", x_axis_name="epoch", y_axis_name="IoU Metric")
             
 
             
