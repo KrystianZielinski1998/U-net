@@ -2,7 +2,6 @@ import os
 import torch
 import numpy as np
 import matplotlib.pyplot as plt
-from matplotlib.colors import ListedColormap
 
 
 class VisSegmentation:
@@ -46,17 +45,17 @@ class VisSegmentation:
             # -------------------------
             # Row 1: Image + IDX
             # -------------------------
-            axes[0, i].imshow(img, cmap="gray", vmin=0, vmax=1)
-            axes[0, i].set_title(f"Image idx: {idx}")
+            axes[0, i].imshow(img, cmap="gray")
+            axes[0, i].set_title(f"Original {idx}")
             axes[0, i].axis("off")
 
             # -------------------------
             # Row 2: Overlay GT + Pred
             # -------------------------
-            axes[1, i].imshow(img, cmap="gray", vmin=0, vmax=1)
+            axes[1, i].imshow(img, cmap="gray")
             axes[1, i].imshow(true_mask, alpha=0.4, cmap="gray")
             axes[1, i].imshow(pred_mask, alpha=0.4, cmap="Reds")
-            axes[1, i].set_title(f"GT vs Pred (idx: {idx})")
+            axes[1, i].set_title(f"GT=white vs Pred=red")
             axes[1, i].axis("off")
 
             # -------------------------
@@ -65,7 +64,7 @@ class VisSegmentation:
             colored_mask = self._create_colored_mask(true_mask, pred_mask)
 
             axes[2, i].imshow(colored_mask)
-            axes[2, i].set_title(f"TP/FP/FN (idx: {idx})")
+            axes[2, i].set_title(f"TP=green/FP=red/FN=white")
             axes[2, i].axis("off")
 
         plt.tight_layout()
