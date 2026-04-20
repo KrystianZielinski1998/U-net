@@ -198,19 +198,19 @@ class Trainer:
             self.augmentation_scheduler.set_epoch(epoch)
 
             train_metrics = self.train_one_epoch()
-            eval_metrics = self.evaluate()
+            val_metrics = self.evaluate()
 
             self.metrics.store(train_metrics, mode="train")
             self.metrics.store(val_metrics, mode="val")
 
-            self.log_metrics(train_metrics, eval_metrics)
+            self.log_metrics(train_metrics, val_metrics)
             
             if (epoch+1) % 1 == 0:
                 vis_fig = self.vis(model=self.model, epoch=epoch+1, num_samples=8)
                 self.wandb_logger(vis_fig, epoch+1)
 
             self.scheduler.step()
-            self.early_stopping(eval_metrics.dice_torch, self.model)
+            self.early_stopping(val_metrics.dice_torch, self.model)
             if self.early_stopping.early_stop:
                 break
 
