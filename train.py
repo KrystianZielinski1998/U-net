@@ -1,27 +1,17 @@
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
-import logging
-from dataclasses import dataclass
-from tqdm import tqdm
-from torch.optim.lr_scheduler import CosineAnnealingLR
 import torch.optim as optim
-from torchmetrics.classification import BinaryJaccardIndex, BinaryF1Score
-from tabulate import tabulate
-from vis_segmentation import VisSegmentation
+import logging
 import os
 
-# ----------------------------
-# Metrics
-# ----------------------------
-@dataclass
-class Metrics:
-    loss: float = 0.0
-    dice: float = 0.0
-    iou: float = 0.0
-    dice_torch: float = 0.0
-    iou_torch: float = 0.0
-    
+from tqdm import tqdm
+from torch.optim.lr_scheduler import CosineAnnealingLR
+from tabulate import tabulate
+
+from metrics import dice_loss, dice_iou, BCEDiceLoss, MetricsAccumulator
+from vis_segmentation import VisSegmentation
+from wand_logger import WandbLogger
+
 # ----------------------------
 # Early Stopping
 # ----------------------------
@@ -70,126 +60,6 @@ class EarlyStopping:
                 if self.verbose:
                     self.logger.info('Early stopping triggered.')
 
-# ----------------------------
-# Dice
-# ----------------------------
-def dice_coeff(preds, masks, eps=1e-6):
-    """
-    Args:
-        preds (): [B,H,W] 
-        masks (): [B,H,W]
-    """
-
-    preds = preds.float()
-    masks = masks.float()
-
-    intersection = (preds * masks).sum(dim=(1,2))
-    union = preds.sum(dim=(1,2)) + masks.sum(dim=(1,2))
-    dice = (2 * intersection + eps) / (union + eps)
-    return dice.mean()
-
-# ----------------------------
-# IoU
-# ----------------------------
-def iou_score(preds, masks, eps=1e-6):
-    """
-    Args:
-        preds (): [B,H,W] 
-        masks (): [B,H,W]
-    """
-
-    preds = preds.float()
-    masks = masks.float()
-
-    intersection = (preds * masks).sum(dim=(1,2))
-    union = (preds + masks - preds * masks).sum(dim=(1,2))
-    return ((intersection + eps) / (union + eps)).mean()
-
-# ----------------------------
-# Metrics accumulator
-# ----------------------------
-class MetricsAccumulator:
-    def __init__(self, device):
-        self.device = device
-        self.reset()
-        
-
-    def reset(self):
-        self.total_loss = 0.0
-        self.total_samples = 0
-        self.dice_total = 0.0
-        self.iou_total = 0.0
-        self.dice_torch_total = 0.0
-        self.iou_torch_total = 0.0
-        
-        self.dice_torch = BinaryF1Score().to(self.device)
-        self.iou_torch = BinaryJaccardIndex().to(self.device)
-        
-
-    def update(self, loss, preds, masks):
-        """
-        Args:
-            preds (): [B,H,W] 
-            masks (): [B,H,W]
-        """
-        B = masks.size(0)
-
-        self.total_loss += loss.item() * B
-
-        self.dice_total += dice_coeff(preds, masks).item() * B
-        self.iou_total += iou_score(preds, masks).item() * B
-        
-        self.dice_torch.update(preds, masks)
-        self.iou_torch.update(preds, masks)
-
-        self.total_samples += B
-
-
-    def compute(self):
-        avg_loss = self.total_loss / self.total_samples
-
-        avg_dice = self.dice_total / self.total_samples
-        avg_iou = self.iou_total / self.total_samples
-
-        avg_dice_torch = self.dice_torch.compute().item()
-        avg_iou_torch = self.iou_torch.compute().item()
-
-        return Metrics(avg_loss, avg_dice, avg_iou, avg_dice_torch, avg_iou_torch)
-
-# ----------------------------
-# Loss
-# ----------------------------
-def dice_loss(logits, targets, eps=1e-6):
-    probs = torch.sigmoid(logits)
-
-    probs = probs.view(probs.size(0), -1)
-    targets = targets.view(targets.size(0), -1)
-
-    intersection = (probs * targets).sum(dim=1)
-    union = probs.sum(dim=1) + targets.sum(dim=1)
-
-    dice = (2 * intersection + eps) / (union + eps)
-
-    return 1 - dice.mean()
-
-
-class BCEDiceLoss(nn.Module):
-    def __init__(self, bce_weight=0.3):
-        super().__init__()
-        self.bce = nn.BCEWithLogitsLoss()
-        self.bce_weight = bce_weight
-
-    def forward(self, logits, masks):
-
-        masks = masks.unsqueeze(1).float()  # [B,1,H,W]
-
-        bce_loss = self.bce(logits, masks)
-        d_loss = dice_loss(logits, masks)
-
-        # optional: slightly favor Dice in medical tasks
-        loss = self.bce_weight * bce_loss + (1 - self.bce_weight) * d_loss
-
-        return loss
 
 # ----------------------------
 # Trainer
@@ -226,11 +96,14 @@ class Trainer:
         self.early_stopping = EarlyStopping(patience=self.patience, min_delta=0.0, verbose=True)
         self.augmentation_scheduler = augmentation_scheduler
         
+        self.metrics = MetricsAccumulator(self.device)
+
         self.vis = VisSegmentation(self.val_loader, self.device)
 
         self.logger = logging.getLogger(__name__)
-        
         self.log_model_info()
+
+        self.wandb_logger = WandbLogger()
 
     def log_model_info(self):
         self.logger.info(self.model)
@@ -243,18 +116,22 @@ class Trainer:
 
     def train_one_epoch(self):
         self.model.train()
-        metrics = MetricsAccumulator(self.device)
+        self.metrics.reset()
 
         for imgs, masks in tqdm(self.train_loader, total=len(self.train_loader), desc="Training"):
             imgs, masks = imgs.to(self.device), masks.to(self.device)
 
             # Forward
             logits = self.model(imgs)
-            loss = self.criterion(logits, masks)
+
+            # Calculate losses
+            bcedice_loss_train = self.criterion(logits, masks)
+            dice_loss_train = dice_loss(logits, masks)
+            iou_loss_train = dice_iou(logits, masks)
 
             # Backward
             self.optimizer.zero_grad()
-            loss.backward()
+            bcedice_loss.backward()
             self.optimizer.step()
 
             # Predictions for metrics
@@ -264,38 +141,45 @@ class Trainer:
             preds = preds.squeeze(1)
             masks = masks.squeeze(1)
 
-            metrics.update(loss, preds, masks)
+            metrics.update(bcedice_loss_train, dice_loss_train, iou_loss_train, preds, masks)
 
         return metrics.compute()
 
     def evaluate(self):
         self.model.eval()
-        metrics = MetricsAccumulator(self.device)
+        self.metrics.reset()
 
         with torch.no_grad():
             for imgs, masks in tqdm(self.val_loader, total=len(self.val_loader), desc="Evaluating"):
                 imgs, masks = imgs.to(self.device), masks.to(self.device)
-                logits = self.model(imgs)
-                loss = self.criterion(logits, masks)
 
+                # Forward
+                logits = self.model(imgs)
+
+                # Calculate losses
+                bcedice_loss_val = self.criterion(logits, masks)
+                dice_loss_val = dice_loss(logits, masks)
+                iou_loss_val = dice_iou(logits, masks)
+
+                # Predictions for metrics
                 probs = torch.sigmoid(logits)
                 preds = (probs > 0.5).long()
 
                 preds = preds.squeeze(1)
                 masks = masks.squeeze(1)
 
-                metrics.update(loss, preds, masks)
+                metrics.update(bcedice_loss_val, dice_loss_val, iou_loss_val, preds, masks)
 
         return metrics.compute()
 
     def log_metrics(self, train_metrics, eval_metrics):
     
         table = [
-            ["Loss", train_metrics.loss, eval_metrics.loss],
-            ["Dice", train_metrics.dice, eval_metrics.dice],
-            ["Dice (torch)", train_metrics.dice_torch, eval_metrics.dice_torch],
-            ["IoU", train_metrics.iou, eval_metrics.iou],
-            ["IoU (torch)", train_metrics.iou_torch, eval_metrics.iou_torch],
+            ["BCE + Dice Loss", train_metrics.bcedice_loss, eval_metrics.bcedice_loss],
+            ["Dice Loss", train_metrics.dice_loss, eval_metrics.dice_loss],
+            ["IoU Loss", train_metrics.iou_loss, eval_metrics.iou_loss],
+            ["Dice Metric", train_metrics.dice_metric, eval_metrics.dice_metric],
+            ["IoU Metric", train_metrics.iou_metric, eval_metrics.iou_metric],
         ]
 
         self.logger.info("\n" + tabulate(
@@ -316,16 +200,27 @@ class Trainer:
             train_metrics = self.train_one_epoch()
             eval_metrics = self.evaluate()
 
+            metrics.store(train_metrics, mode="train")
+            metrics.store(val_metrics, mode="val")
+
             self.log_metrics(train_metrics, eval_metrics)
             
             if (epoch+1) % 1 == 0:
-                self.vis(model=self.model, epoch=epoch+1, num_samples=6)
+                vis_fig = self.vis(model=self.model, epoch=epoch+1, num_samples=8)
+                self.wandb_logger(vis_fig, epoch)
 
             self.scheduler.step()
             self.early_stopping(eval_metrics.dice_torch, self.model)
             if self.early_stopping.early_stop:
                 break
 
+        self.wandb_logger.log_artifact("checkpoints/best_model.pth", "best model")
+
+        self.wandb_logger.log_line_plot(metrics.history_train.bcedice_loss, metrics.history_val.bcedice_loss, name="BCE + Dice Loss", x_axis_name="epoch", y_axis_name="BCE + Dice Loss") 
+        self.wandb_logger.log_line_plot(metrics.history_train.dice_loss, metrics.history_val.dice_loss, name="Dice Loss", x_axis_name="epoch", y_axis_name="Dice Loss") 
+        self.wandb_logger.log_line_plot(metrics.history_train.iou_loss, metrics.history_val.iou_loss, name="IoU Loss", x_axis_name="epoch", y_axis_name="IoU Loss")
+        self.wandb_logger.log_line_plot(metrics.history_train.dice_metric, metrics.history_val.dice_metric, name="Dice Metric", x_axis_name="epoch", y_axis_name="Dice Metric")
+        self.wandb_logger.log_line_plot(metrics.history_train.iou_metric, metrics.history_val.iou_metric, name="IoU Metric", x_axis_name="epoch", y_axis_name="IoU Metric")
             
 
             
