@@ -216,11 +216,11 @@ class Trainer:
 
         self.wandb_logger.log_artifact("checkpoints/best_model.pth", "best-model")
 
-        self.wandb_logger.log_line_plot(self.metrics.history_train.bcedice_loss, self.metrics.history_val.bcedice_loss, name="BCE + Dice Loss") 
-        self.wandb_logger.log_line_plot(self.metrics.history_train.dice_loss, self.metrics.history_val.dice_loss, name="Dice Loss") 
-        self.wandb_logger.log_line_plot(self.metrics.history_train.iou_loss, self.metrics.history_val.iou_loss, name="IoU Loss")
-        self.wandb_logger.log_line_plot(self.metrics.history_train.dice_metric, self.metrics.history_val.dice_metric, name="Dice Metric")
-        self.wandb_logger.log_line_plot(self.metrics.history_train.iou_metric, self.metrics.history_val.iou_metric, name="IoU Metric")
+        self.wandb_logger.log_metrics(self.metrics.history_train.bcedice_loss, self.metrics.history_val.bcedice_loss, name="BCE + Dice Loss") 
+        self.wandb_logger.log_metrics(self.metrics.history_train.dice_loss, self.metrics.history_val.dice_loss, name="Dice Loss") 
+        self.wandb_logger.log_metrics(self.metrics.history_train.iou_loss, self.metrics.history_val.iou_loss, name="IoU Loss")
+        self.wandb_logger.log_metrics(self.metrics.history_train.dice_metric, self.metrics.history_val.dice_metric, name="Dice Metric")
+        self.wandb_logger.log_metrics(self.metrics.history_train.iou_metric, self.metrics.history_val.iou_metric, name="IoU Metric")
 
         self.wandb_logger.finish()
 
