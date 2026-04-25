@@ -76,8 +76,8 @@ def main():
 
     # Augmentation Scheduler
     augmentation_scheduler = AugmentationScheduler(
-        max_epochs=args.max_epochs,
-        no_aug_epochs=args.no_aug_epochs
+        start_epoch=args.aug_start_epoch,
+        end_epoch=args.aug_end_epoch
     )
     
     # Datamodule
@@ -121,8 +121,7 @@ def visualize_augmentation(augmenter):
     visualizer = VisAugmentation(
         images_path="dataset/images",
         masks_path="dataset/masks",
-        augmenter=augmenter,
-        intensity=0.0
+        augmenter=augmenter
     )
     
     visualizer(

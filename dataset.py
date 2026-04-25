@@ -31,11 +31,11 @@ class DatasetReader(Dataset):
 
 
 class ProcessedDataset(Dataset):
-    def __init__(self, base_dataset, normalizer=None, augmenter=None, scheduler=None):
+    def __init__(self, base_dataset, normalizer=None, augmenter=None, augmentation_scheduler=None):
         self.dataset = base_dataset
         self.normalizer = normalizer
         self.augmenter = augmenter
-        self.scheduler = scheduler
+        self.augmentation_scheduler = augmentation_scheduler
 
     def __len__(self):
         return len(self.dataset)
@@ -44,13 +44,13 @@ class ProcessedDataset(Dataset):
         img, mask = self.dataset[idx]
 
         # Augmentation logic
-        if self.augmenter is not None and self.scheduler is not None:
+        if self.augmenter is not None and self.augmentation_scheduler is not None:
 
             
-            if self.scheduler.current_epoch < self.scheduler.start_epoch:
+            if self.augmentation_scheduler.current_epoch < self.augmentation_scheduler.start_epoch:
                 pass  
             else:
-                intensity = self.scheduler.intensity
+                intensity = self.augmentation_scheduler.intensity
 
                 if intensity > 0:
                     img_np = img.squeeze(0).numpy()

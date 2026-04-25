@@ -11,15 +11,16 @@ class Augmenter:
         scale_min, scale_max = 0.05, 0.15
         shear_min, shear_max = 2, 6
 
-        prob = 0.5
+        prob_min, prob_max = 0.5, 0.8
 
         rotate = rotate_min + intensity * (rotate_max - rotate_min)
         translate = translate_min + intensity * (translate_max - translate_min)
         scale = scale_min + intensity * (scale_max - scale_min)
         shear = shear_min + intensity * (shear_max - shear_min)
+        prob = prob_min + intensity * (prob_max - prob_min)
 
         transform = A.Compose([
-            A.HorizontalFlip(p=prob),
+            A.HorizontalFlip(p=0.5),
 
             A.OneOf([
                 A.Compose([
