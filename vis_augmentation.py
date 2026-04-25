@@ -9,6 +9,7 @@ class VisAugmentation:
         self.images_path = sorted(list(Path(images_path).glob("*.png")))
         self.masks_path = sorted(list(Path(masks_path).glob("*.png")))
         self.augmenter = augmenter
+        self.intensity = intensity
 
     def load_image(self, path):
         return np.array(Image.open(path).convert("L"))
@@ -17,7 +18,7 @@ class VisAugmentation:
         mask = np.array(Image.open(path).convert("L"))
         return (mask > 127).astype(np.float32)
 
-    def __call__(self, num_samples=4, save_path="aug_vis.png"):
+    def __call__(self, num_samples=4, save_path="aug_vis.png", intensity:float=0.0):
 
         indices = np.random.choice(len(self.images_path), num_samples, replace=False)
         fig, axes = plt.subplots(4, num_samples, figsize=(4 * num_samples, 10))
@@ -34,7 +35,7 @@ class VisAugmentation:
             # AUGMENT
             # -------------------------
             if self.augmenter:
-                aug_img, aug_mask= self.augmenter(image=orig_img, mask=orig_mask)
+                aug_img, aug_mask= self.augmenter(image=orig_img, mask=orig_mask, intensity=intensity)
             else:
                 aug_img = orig_img
                 aug_mask = orig_mask

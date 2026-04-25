@@ -31,11 +31,11 @@ class DatasetReader(Dataset):
 
 
 class ProcessedDataset(Dataset):
-    def __init__(self, base_dataset, normalizer=None, augmenter=None, augmentation_scheduler=None):
+    def __init__(self, base_dataset, normalizer=None, augmenter=None, scheduler=None):
         self.dataset = base_dataset
         self.normalizer = normalizer
         self.augmenter = augmenter
-        self.augmentation_scheduler = augmentation_scheduler
+        self.scheduler = scheduler
 
     def __len__(self):
         return len(self.dataset)
@@ -43,17 +43,25 @@ class ProcessedDataset(Dataset):
     def __getitem__(self, idx):
         img, mask = self.dataset[idx]
 
-        # -------- SCHEDULING LOGIC --------
-        if self.augmenter is not None and self.augmentation_scheduler.is_active():
-            img_np = img.squeeze(0).numpy()
-            mask_np = mask.numpy()
+        # Augmentation logic
+        if self.augmenter is not None and self.scheduler is not None:
 
-            img_np, mask_np = self.augmenter(img_np, mask_np)
+            
+            if self.scheduler.current_epoch < self.scheduler.start_epoch:
+                pass  
+            else:
+                intensity = self.scheduler.intensity
 
-            img = torch.from_numpy(img_np).unsqueeze(0)
-            mask = torch.from_numpy(mask_np)
+                if intensity > 0:
+                    img_np = img.squeeze(0).numpy()
+                    mask_np = mask.numpy()
 
-        # -------- NORMALIZATION --------
+                    img_np, mask_np = self.augmenter(img_np, mask_np, intensity)
+
+                    img = torch.from_numpy(img_np).unsqueeze(0)
+                    mask = torch.from_numpy(mask_np)
+
+        # Normalization call
         if self.normalizer is not None:
             img = self.normalizer(img)
 
@@ -86,9 +94,7 @@ class DataModule:
         self.num_workers = num_workers
         self.seed = seed
 
-    # -------------------------
-    # SPLIT DATASET
-    # -------------------------
+    # Split dataset
     def _split(self, dataset):
         n = len(dataset)
         indices = np.random.default_rng(self.seed).permutation(n)
@@ -101,25 +107,22 @@ class DataModule:
             Subset(dataset, val_idx),
         )
 
-
-    # -------------------------
-    # BUILD EVERYTHING
-    # -------------------------
+    # Build dataset
     def setup(self):
-        # 1. base dataset 
+        # Get base dataset 
         base_dataset = DatasetReader(
             self.images_path,
             self.masks_path,
             self.img_size
         )
 
-        # 2. split
+        # Split base dataset into train and val
         train_base, val_base = self._split(base_dataset)
 
-        # 3. fit normalization ONLY on train
+        # Calculate avg and std of train set images for normalization parameters
         self.normalizer.fit(train_base)
 
-        # 4. wrap datasets (THIS is where augmentation goes)
+        # Wrap datasets
         train_dataset = ProcessedDataset(
             train_base,
             normalizer=self.normalizer,
@@ -134,7 +137,7 @@ class DataModule:
             augmentation_scheduler=None             
         )
 
-        # 5. loaders
+        # Get loaders
         self.train_loader = DataLoader(
             train_dataset,
             batch_size=self.batch_size,
@@ -151,9 +154,7 @@ class DataModule:
 
         return self
 
-    # -------------------------
-    # PUBLIC API
-    # -------------------------
+    # Get loaders func
     def get_loaders(self):
         return self.train_loader, self.val_loader
 

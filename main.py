@@ -39,10 +39,11 @@ def parse_args():
     parser.add_argument("--batch_size", type=int, default=16, help="Batch size for training and validation")
     parser.add_argument("--max_epochs", type=int, default=100, help="Maximum number of epochs")
     parser.add_argument("--patience", type=int, default=20, help="Early stopping patience")
-    parser.add_argument("--base_lr", type=float, default=5e-4, help="Initial learning rate")
-    parser.add_argument("--min_lr", type=float, default=1e-7, help="Minimal lr")
+    parser.add_argument("--base_lr", type=float, default=1e-3, help="Initial learning rate")
+    parser.add_argument("--min_lr", type=float, default=1e-6, help="Minimal lr")
     parser.add_argument("--img_size", type=float, default=224, help="Image size")
-    parser.add_argument("--no_aug_epochs", type=int, default=20, help="Number of epochs without augmentation")
+    parser.add_argument("--aug_start_epoch", type=int, default=10, help="Epoch at which data augmentation begins to be applied (linearly increasing intensity)")
+    parser.add_argument("--aug_end_epoch", type=int, default=90, help="Epoch at which augmentation reaches full intensity (1.0)")
     parser.add_argument("--vis_augmentation", type=bool, default=True, help="Create and save fig of augmentation preview")
     parser.add_argument("--vis_segmentation", type=bool, default=True, help="Create and save fig of segmentation preview during training")
     args = parser.parse_args()
@@ -121,11 +122,19 @@ def visualize_augmentation(augmenter):
         images_path="dataset/images",
         masks_path="dataset/masks",
         augmenter=augmenter,
+        intensity=0.0
+    )
+    
+    visualizer(
+        num_samples=10,
+        save_path="aug_intensity_0.png",
+        intensity=0.0
     )
 
     visualizer(
         num_samples=10,
-        save_path="augmentation_preview.png"
+        save_path="aug_intensity_1.png",
+        intensity=1.0
     )
 
 
