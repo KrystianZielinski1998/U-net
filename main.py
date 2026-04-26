@@ -13,6 +13,7 @@ import wandb
 from train import Trainer
 from unet import UNetModel 
 
+from clahe_preprocessor import CLAHEPreprocessor
 from normalizer import ZScoreNormalizer
 from augmentations import Augmenter, AugmentationScheduler
 from dataset import DataModule
@@ -64,6 +65,9 @@ def main():
     # Get U-Net model
     model = UNetModel()
     
+    # Get CLAHE preprocessor
+    clahe_preprocessor = CLAHEPreprocessor()
+
     # Get normalizer
     normalizer = ZScoreNormalizer()
 
@@ -86,6 +90,7 @@ def main():
         masks_path="dataset/masks",
         img_size=args.img_size,
         batch_size=args.batch_size,
+        clahe_preprocessor=clahe_preprocessor,
         normalizer=normalizer,
         augmenter=augmenter,
         augmentation_scheduler=augmentation_scheduler,

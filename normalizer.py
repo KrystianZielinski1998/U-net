@@ -8,7 +8,7 @@ class ZScoreNormalizer:
         self.std = None
         self.eps = 1e-8
 
-    def fit(self, dataset, batch_size=16):
+    def fit(self, dataset, clahe_preprocessor, batch_size=16):
         loader = DataLoader(dataset, batch_size=batch_size, shuffle=False)
 
         total_sum = 0.0
@@ -16,6 +16,14 @@ class ZScoreNormalizer:
         total_pixels = 0
 
         for imgs, _ in loader:
+            # Apply CLAHE per image if provided
+            if clahe_preprocessor is not None:
+                processed = []
+                for img in imgs:
+                    img = clahe_preprocessor(img)  # keep same tensor shape
+                    processed.append(img)
+                imgs = torch.stack(processed)
+                
             imgs = imgs / 255.0
 
             total_sum += imgs.sum()

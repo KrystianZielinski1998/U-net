@@ -30,9 +30,10 @@ class DatasetReader(Dataset):
         return img, mask
 
 
-class ProcessedDataset(Dataset):
-    def __init__(self, base_dataset, normalizer=None, augmenter=None, augmentation_scheduler=None):
+class DatasetProcessor(Dataset):
+    def __init__(self, base_dataset, normalizer=None, clahe_preprocessor=None, augmenter=None, augmentation_scheduler=None):
         self.dataset = base_dataset
+        self.clahe_preprocessor = clahe_preprocessor
         self.normalizer = normalizer
         self.augmenter = augmenter
         self.augmentation_scheduler = augmentation_scheduler
@@ -42,11 +43,18 @@ class ProcessedDataset(Dataset):
 
     def __getitem__(self, idx):
         img, mask = self.dataset[idx]
+        
+        # CLAHE contrast enhancement
+        if self.clahe_preprocessor is not None:
+            img = self.clahe_preprocessor(img)
 
-        # Augmentation logic
+        # Normalization 
+        if self.normalizer is not None:
+            img = self.normalizer(img)
+
+        # Online augmentation for training set
         if self.augmenter is not None and self.augmentation_scheduler is not None:
-
-            
+          
             if self.augmentation_scheduler.current_epoch < self.augmentation_scheduler.start_epoch:
                 pass  
             else:
@@ -61,10 +69,6 @@ class ProcessedDataset(Dataset):
                     img = torch.from_numpy(img_np).unsqueeze(0)
                     mask = torch.from_numpy(mask_np)
 
-        # Normalization call
-        if self.normalizer is not None:
-            img = self.normalizer(img)
-
         return img, mask
 
 
@@ -76,6 +80,7 @@ class DataModule:
         img_size,
         batch_size=16,
         val_split=0.1,
+        clahe_preprocessor=None,
         normalizer=None,
         augmenter=None,
         augmentation_scheduler=None,
@@ -88,6 +93,7 @@ class DataModule:
         self.batch_size = batch_size
         self.val_split = val_split
 
+        self.clahe_preprocessor = clahe_preprocessor
         self.normalizer = normalizer
         self.augmenter = augmenter
         self.augmentation_scheduler = augmentation_scheduler
@@ -120,31 +126,34 @@ class DataModule:
         train_base, val_base = self._split(base_dataset)
 
         # Calculate avg and std of train set images for normalization parameters
-        self.normalizer.fit(train_base)
+        self.normalizer.fit(train_base, clahe_preprocessor)
 
         # Wrap datasets
-        train_dataset = ProcessedDataset(
+        train_dataset = DatasetProcessor(
             train_base,
+            clahe_preprocessor=self.clahe_preprocessor
             normalizer=self.normalizer,
             augmenter=self.augmenter,
             augmentation_scheduler=self.augmentation_scheduler   
         )
 
-        val_dataset = ProcessedDataset(
+        val_dataset = DatasetProcessor(
             val_base,
+            clahe_preprocessor=self.clahe_preprocessor
             normalizer=self.normalizer,
             augmenter=None,
             augmentation_scheduler=None             
         )
 
-        # Get loaders
+        # Get train loader
         self.train_loader = DataLoader(
             train_dataset,
             batch_size=self.batch_size,
             shuffle=True,
             num_workers=self.num_workers
         )
-
+        
+        # Get val loader
         self.val_loader = DataLoader(
             val_dataset,
             batch_size=self.batch_size,
