@@ -131,7 +131,7 @@ class DataModule:
         # Wrap datasets
         train_dataset = DatasetProcessor(
             train_base,
-            clahe_preprocessor=self.clahe_preprocessor
+            clahe_preprocessor=self.clahe_preprocessor,
             normalizer=self.normalizer,
             augmenter=self.augmenter,
             augmentation_scheduler=self.augmentation_scheduler   
@@ -139,7 +139,7 @@ class DataModule:
 
         val_dataset = DatasetProcessor(
             val_base,
-            clahe_preprocessor=self.clahe_preprocessor
+            clahe_preprocessor=self.clahe_preprocessor,
             normalizer=self.normalizer,
             augmenter=None,
             augmentation_scheduler=None             

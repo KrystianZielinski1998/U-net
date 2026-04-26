@@ -76,7 +76,7 @@ def main():
 
     # Visualize augmentation preview
     if args.vis_augmentation:
-        visualize_augmentation(augmenter)
+        visualize_augmentation(clahe_preprocessor, augmenter)
 
     # Augmentation Scheduler
     augmentation_scheduler = AugmentationScheduler(
@@ -119,13 +119,14 @@ def main():
 
     trainer()
 
-def visualize_augmentation(augmenter):
+def visualize_augmentation(clahe_preprocessor, augmenter):
 
     args = parse_args()
 
     visualizer = VisAugmentation(
         images_path="dataset/images",
         masks_path="dataset/masks",
+        clahe_preprocessor=clahe_preprocessor,
         augmenter=augmenter
     )
     

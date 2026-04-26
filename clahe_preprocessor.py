@@ -1,5 +1,6 @@
 import cv2
 import numpy as np
+import torch
 
 
 class CLAHEPreprocessor:
@@ -9,20 +10,36 @@ class CLAHEPreprocessor:
             tileGridSize=tile_grid_size
         )
 
-    def __call__(self, img: np.ndarray) -> np.ndarray:
+    def __call__(self, img):
         """
-        Args:
-            img: uint8 or float in range [0, 255]
-        
+        Supports:
+        - torch.Tensor (1, H, W)
+        - numpy.ndarray (H, W)
+
         Returns:
-            : uint8 image after CLAHE
+        - same type as input
         """
 
-        if img.dtype != np.uint8:
-            img = img.astype(np.uint8)
+        is_tensor = isinstance(img, torch.Tensor)
 
-        return self.clahe.apply(img)
+        # --- convert to numpy ---
+        if is_tensor:
+            img_np = img.squeeze(0).cpu().numpy()
+        else:
+            img_np = img
 
+        # --- ensure uint8 ---
+        if img_np.dtype != np.uint8:
+            img_np = np.clip(img_np, 0, 255).astype(np.uint8)
+
+        # --- apply CLAHE ---
+        img_np = self.clahe.apply(img_np)
+
+        # --- convert back if needed ---
+        if is_tensor:
+            return torch.from_numpy(img_np).unsqueeze(0).float()
+        else:
+            return img_np
 
     
 
