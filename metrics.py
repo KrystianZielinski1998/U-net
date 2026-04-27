@@ -62,10 +62,10 @@ def dice_loss(logits, targets, eps=1e-6):
 # BCEDiceLoss
 # ----------------------------
 class BCEDiceLoss(nn.Module):
-    def __init__(self, bce_weight=0.7):
+    def __init__(self, bce_loss_weight):
         super().__init__()
         self.bce = nn.BCEWithLogitsLoss()
-        self.bce_weight = bce_weight
+        self.bce_loss_weight = bce_loss_weight
 
     def forward(self, logits, masks):
 

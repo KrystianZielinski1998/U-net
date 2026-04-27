@@ -50,12 +50,27 @@ class VisSegmentation:
             axes[0, i].axis("off")
 
             # -------------------------
-            # Row 2: Overlay GT + Pred
+            # Row 2: Image + contours (GT vs Pred)
             # -------------------------
             axes[1, i].imshow(img, cmap="gray")
-            axes[1, i].imshow(true_mask, alpha=0.4, cmap="gray")
-            axes[1, i].imshow(pred_mask, alpha=0.4, cmap="Reds")
-            axes[1, i].set_title(f"GT=white vs Pred=red")
+
+            # GT contour (green)
+            axes[1, i].contour(
+                true_mask,
+                levels=[0.5],
+                colors="green",
+                linewidths=2
+            )
+
+            # Pred contour (red)
+            axes[1, i].contour(
+                pred_mask,
+                levels=[0.5],
+                colors="red",
+                linewidths=2
+            )
+
+            axes[1, i].set_title("GT = green | Pred = red")
             axes[1, i].axis("off")
 
             # -------------------------

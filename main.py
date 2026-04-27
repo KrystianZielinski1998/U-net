@@ -43,10 +43,24 @@ def parse_args():
     parser.add_argument("--base_lr", type=float, default=1e-3, help="Initial learning rate")
     parser.add_argument("--min_lr", type=float, default=1e-6, help="Minimal lr")
     parser.add_argument("--img_size", type=float, default=224, help="Image size")
+    parser.add_argument("--bce_loss_weight", type=float, default=0.5, help="Weight of the BCELoss part in the total DiceBCELoss")
+
+    # Online augmentation parameters
     parser.add_argument("--aug_start_epoch", type=int, default=10, help="Epoch at which data augmentation begins to be applied (linearly increasing intensity)")
     parser.add_argument("--aug_end_epoch", type=int, default=90, help="Epoch at which augmentation reaches full intensity (1.0)")
+
+    # CLAHE preprocessing
+    parser.add_argument("--use_clahe", type=bool, default=True, help="Use/Do not use clahe contrast enhancement as a preprocessing step")
+    parser.add_argument("--clahe_clip", type=float, default=1.0, help="Controls how much contrast is enhanced: lower values limit contrast amplification "
+        "and reduce noise, higher values increase contrast but may amplify noise/artifacts.")
+    
+    # Wandb config
+    parser.add_argument("--run_name", type=str, help="Name of the run in wandb logging")
+
+    # Visualization
     parser.add_argument("--vis_augmentation", type=bool, default=True, help="Create and save fig of augmentation preview")
     parser.add_argument("--vis_segmentation", type=bool, default=True, help="Create and save fig of segmentation preview during training")
+
     args = parser.parse_args()
 
     return args
@@ -55,6 +69,9 @@ def main():
 
     # Setup logging
     setup_logging()
+
+    # Set global seed
+    set_global_seed(seed=42)
 
     # Parse args
     args = parse_args()
@@ -66,7 +83,10 @@ def main():
     model = UNetModel()
     
     # Get CLAHE preprocessor
-    clahe_preprocessor = CLAHEPreprocessor()
+    if args.use_clip:
+        clahe_preprocessor = CLAHEPreprocessor(clip_limit=args.clip_limit)
+    else:
+        clahe_preprocessor = None
 
     # Get normalizer
     normalizer = ZScoreNormalizer()
@@ -94,7 +114,7 @@ def main():
         normalizer=normalizer,
         augmenter=augmenter,
         augmentation_scheduler=augmentation_scheduler,
-        num_workers=4   
+        num_workers=2 
     ).setup()
 
     # Train and Val loaders
@@ -142,6 +162,23 @@ def visualize_augmentation(clahe_preprocessor, augmenter):
         intensity=1.0
     )
 
+def set_global_seed(seed: int):
+    # Python RNG
+    random.seed(seed)
+
+    # NumPy RNG
+    np.random.seed(seed)
+
+    # PyTorch CPU
+    torch.manual_seed(seed)
+
+    # PyTorch GPU 
+    torch.cuda.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+
+    # Determinism 
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
 
 if __name__ == "__main__":
    main()

@@ -17,6 +17,7 @@ class ZScoreNormalizer:
         total_pixels = 0
 
         for imgs, _ in loader:
+            
             # Apply CLAHE per image if provided
             if clahe_preprocessor is not None:
                 processed = []

@@ -3,7 +3,7 @@ import torch
 from torch.utils.data import Dataset, DataLoader, Subset
 from PIL import Image
 import numpy as np
-
+import random
 
 class DatasetReader(Dataset):
     def __init__(self, images_path, masks_path, img_size=224):
@@ -60,14 +60,13 @@ class DatasetProcessor(Dataset):
             else:
                 intensity = self.augmentation_scheduler.intensity
 
-                if intensity > 0:
-                    img_np = img.squeeze(0).numpy()
-                    mask_np = mask.numpy()
+                img_np = img.squeeze(0).numpy()
+                mask_np = mask.numpy()
 
-                    img_np, mask_np = self.augmenter(img_np, mask_np, intensity)
+                img_np, mask_np = self.augmenter(img_np, mask_np, intensity)
 
-                    img = torch.from_numpy(img_np).unsqueeze(0)
-                    mask = torch.from_numpy(mask_np)
+                img = torch.from_numpy(img_np).unsqueeze(0)
+                mask = torch.from_numpy(mask_np)
 
         return img, mask
 
@@ -113,6 +112,13 @@ class DataModule:
             Subset(dataset, val_idx),
         )
 
+    # Worker seeding
+    def _worker_init_fn(self, worker_id):
+        worker_seed = self.seed + worker_id
+        np.random.seed(worker_seed)
+        random.seed(worker_seed)
+        torch.manual_seed(worker_seed)
+
     # Build dataset
     def setup(self):
         # Get base dataset 
@@ -126,9 +132,9 @@ class DataModule:
         train_base, val_base = self._split(base_dataset)
 
         # Calculate avg and std of train set images for normalization parameters
-        self.normalizer.fit(train_base, clahe_preprocessor)
+        self.normalizer.fit(train_base, self.clahe_preprocessor)
 
-        # Wrap datasets
+        # Wrap train dataset
         train_dataset = DatasetProcessor(
             train_base,
             clahe_preprocessor=self.clahe_preprocessor,
@@ -137,6 +143,7 @@ class DataModule:
             augmentation_scheduler=self.augmentation_scheduler   
         )
 
+        # Wrap val dataset
         val_dataset = DatasetProcessor(
             val_base,
             clahe_preprocessor=self.clahe_preprocessor,
@@ -145,12 +152,20 @@ class DataModule:
             augmentation_scheduler=None             
         )
 
+        # Deterministic shuffle generator
+        g = torch.Generator()
+        g.manual_seed(self.seed)
+
         # Get train loader
         self.train_loader = DataLoader(
             train_dataset,
             batch_size=self.batch_size,
             shuffle=True,
-            num_workers=self.num_workers
+            num_workers=self.num_workers,
+            pin_memory=True,
+            worker_init_fn=self._worker_init_fn,
+            generator=g,
+            persistent_workers=True
         )
         
         # Get val loader
@@ -158,7 +173,8 @@ class DataModule:
             val_dataset,
             batch_size=self.batch_size,
             shuffle=False,
-            num_workers=self.num_workers
+            num_workers=self.num_workers,
+            pin_memory=True
         )
 
         return self

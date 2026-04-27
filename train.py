@@ -89,8 +89,9 @@ class Trainer:
         self.batch_size = batch_size
         self.base_lr = base_lr
         self.min_lr = min_lr
+        self.bce_loss_weight = bce_loss_weight
 
-        self.criterion = BCEDiceLoss()
+        self.criterion = BCEDiceLoss(bce_loss_weight=self.bce_loss_weight)
         self.optimizer = optim.AdamW(model.parameters(), lr=base_lr)
         self.scheduler = CosineAnnealingLR(self.optimizer, T_max=self.max_epochs, eta_min=self.min_lr)
         self.early_stopping = EarlyStopping(patience=self.patience, min_delta=0.0, verbose=True)
@@ -119,7 +120,7 @@ class Trainer:
         self.metrics.reset()
 
         for imgs, masks in tqdm(self.train_loader, total=len(self.train_loader), desc="Training"):
-            imgs, masks = imgs.to(self.device), masks.to(self.device)
+            imgs, masks = imgs.to(self.device, non_blocking=True), masks.to(self.device, non_blocking=True)
 
             # Forward
             logits = self.model(imgs)
@@ -151,7 +152,7 @@ class Trainer:
 
         with torch.no_grad():
             for imgs, masks in tqdm(self.val_loader, total=len(self.val_loader), desc="Evaluating"):
-                imgs, masks = imgs.to(self.device), masks.to(self.device)
+                imgs, masks = imgs.to(self.device, non_blocking=True), masks.to(self.device, non_blocking=True)
 
                 # Forward
                 logits = self.model(imgs)

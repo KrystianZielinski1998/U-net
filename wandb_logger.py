@@ -5,13 +5,24 @@ class WandbLogger:
         wandb.init(
             project="Brain Tumor Segmentation",
             group="group 1",
-            name="1",
-            config={
+            name=args.run_name,
+            config = {
+                # training hyperparameters
                 "max_epochs": args.max_epochs,
                 "patience": args.patience,
                 "batch_size": args.batch_size,
                 "base_lr": args.base_lr,
                 "min_lr": args.min_lr,
+                "img_size": args.img_size,
+                "bce_loss_weight": args.bce_loss_weight,
+
+                # augmentation schedule
+                "aug_start_epoch": args.aug_start_epoch,
+                "aug_end_epoch": args.aug_end_epoch,
+
+                # preprocessing
+                "use_clahe": args.use_clahe,
+                "clahe_clip": args.clahe_clip,
             }
         )
 
