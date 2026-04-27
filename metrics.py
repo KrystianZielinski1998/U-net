@@ -74,7 +74,7 @@ class BCEDiceLoss(nn.Module):
         bce_loss = self.bce(logits, masks)
         d_loss = dice_loss(logits, masks)
 
-        loss = self.bce_weight * bce_loss + (1 - self.bce_weight) * d_loss
+        loss = self.bce_loss_weight * bce_loss + (1 - self.bce_loss_weight) * d_loss
 
         return loss
 

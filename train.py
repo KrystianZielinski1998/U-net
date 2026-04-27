@@ -74,6 +74,7 @@ class Trainer:
         batch_size, 
         base_lr, 
         min_lr, 
+        bce_loss_weight,
         augmentation_scheduler,
         wandb_logger
     ):
@@ -224,6 +225,8 @@ class Trainer:
         self.wandb_logger.log_metrics(self.metrics.history_train.iou_metric, self.metrics.history_val.iou_metric, name="IoU Metric")
 
         self.wandb_logger.finish()
+
+
 
             
 

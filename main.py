@@ -9,6 +9,8 @@ import argparse
 from pathlib import Path
 import logging
 import wandb
+import random
+import numpy as np
 
 from train import Trainer
 from unet import UNetModel 
@@ -51,7 +53,7 @@ def parse_args():
 
     # CLAHE preprocessing
     parser.add_argument("--use_clahe", type=bool, default=True, help="Use/Do not use clahe contrast enhancement as a preprocessing step")
-    parser.add_argument("--clahe_clip", type=float, default=1.0, help="Controls how much contrast is enhanced: lower values limit contrast amplification "
+    parser.add_argument("--clahe_clip_limit", type=float, default=1.0, help="Controls how much contrast is enhanced: lower values limit contrast amplification "
         "and reduce noise, higher values increase contrast but may amplify noise/artifacts.")
     
     # Wandb config
@@ -83,8 +85,8 @@ def main():
     model = UNetModel()
     
     # Get CLAHE preprocessor
-    if args.use_clip:
-        clahe_preprocessor = CLAHEPreprocessor(clip_limit=args.clip_limit)
+    if args.use_clahe:
+        clahe_preprocessor = CLAHEPreprocessor(clahe_clip_limit=args.clahe_clip_limit)
     else:
         clahe_preprocessor = None
 
@@ -133,6 +135,7 @@ def main():
             batch_size=args.batch_size,
             base_lr=args.base_lr,
             min_lr=args.min_lr,
+            bce_loss_weight=args.bce_loss_weight,
             augmentation_scheduler=augmentation_scheduler,
             wandb_logger=wandb_logger
         )

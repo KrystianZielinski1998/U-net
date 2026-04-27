@@ -22,7 +22,7 @@ class WandbLogger:
 
                 # preprocessing
                 "use_clahe": args.use_clahe,
-                "clahe_clip": args.clahe_clip,
+                "clahe_clip_limit": args.clahe_clip_limit,
             }
         )
 

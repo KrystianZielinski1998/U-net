@@ -4,9 +4,9 @@ import torch
 
 
 class CLAHEPreprocessor:
-    def __init__(self, clip_limit=2.0, tile_grid_size=(8, 8)):
+    def __init__(self, clahe_clip_limit=2.0, tile_grid_size=(8, 8)):
         self.clahe = cv2.createCLAHE(
-            clipLimit=clip_limit,
+            clipLimit=clahe_clip_limit,
             tileGridSize=tile_grid_size
         )
 
