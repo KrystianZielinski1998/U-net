@@ -15,18 +15,28 @@ from vis_segmentation import VisSegmentation
 # Early Stopping
 # ----------------------------
 class EarlyStopping:
-    """ Early stopping to stop training when validation metric doesn't improve. Saves the best checkpoint. """
+    """
+    Early stopping mechanism.
+
+    This class:
+
+    - Stops training when validation metric stops improving.
+    - Saves the best model checkpoint.
+    """
 
     def __init__(self, 
         patience: int, 
         min_delta: float,
         verbose: bool
     ):
-        """   
+        """
         Args:
-            patience (int): Number of epochs to wait after min has been hit before stopping.
-            min_delta (float): Minimum change in monitored value to qualify as improvement.
-            verbose (bool): Add logs.
+            patience (int): Number of epochs to wait without improvement before stopping
+            min_delta (float): Minimum improvement required to reset patience
+            verbose (bool): Whether to log progress
+
+        Returns:
+            None
         """
         self.patience = patience
         self.min_delta = min_delta
@@ -40,30 +50,63 @@ class EarlyStopping:
         os.makedirs("checkpoints", exist_ok=True)
         
     def __call__(self, val_dice, model):
+        """
+        Checks if validation Dice improved and decides whether to stop.
+
+        Args:
+            val_dice (float): Current validation Dice score
+            model (torch.nn.Module): Model to save if improved
+
+        Returns:
+            None
+        """
+
+        # Check if Dice improved
         if val_dice > self.best_dice - self.min_delta:
+
+            # Log improvement
             if self.verbose:
-                self.logger.info(f'Dice score on validation set increased from {self.best_dice: .4f} to {val_dice: .4f}. Saving model...')
+                self.logger.info(
+                    f'Dice score improved from {self.best_dice:.4f} to {val_dice:.4f}. Saving model...'
+                )
+
+            # Update best score
             self.best_dice = val_dice
+
+            # Reset patience counter
             self.counter = 0
             
-            # Save the model
-            torch.save(model.state_dict(), f"checkpoints/best_model.pth")
+            # Save best model
+            torch.save(model.state_dict(), "checkpoints/best_model.pth")
 
         else:
+            # increase counter if there is no improvement
             self.counter += 1
-            if self.verbose:
-                self.logger.info(f'Early stopping counter: {self.counter} out of {self.patience}.')
 
+            if self.verbose:
+                self.logger.info(
+                    f'Early stopping counter: {self.counter}/{self.patience}'
+                )
+
+            # Trigger early stopping
             if self.counter >= self.patience:
                 self.early_stop = True
+
                 if self.verbose:
                     self.logger.info('Early stopping triggered.')
-
 
 # ----------------------------
 # Trainer
 # ----------------------------
 class Trainer:
+    """
+    Main training loop manager.
+
+    This class:
+    - Trains model and evaluates it each epoch
+    - Tracks and logs metrics
+    """
+
     def __init__(self, 
         model, 
         device, 
@@ -78,13 +121,34 @@ class Trainer:
         augmentation_scheduler,
         wandb_logger
     ):
+        """
+        Args:
+            model (nn.Module): Segmentation model
+            device (torch.device): CPU or GPU
+            train_loader (DataLoader): Training data loader
+            val_loader (DataLoader): Validation data loader
+            max_epochs (int): Number of training epochs
+            patience (int): Early stopping patience
+            batch_size (int): Batch size
+            base_lr (float): Initial learning rate
+            min_lr (float): Minimum learning rate for scheduler
+            bce_loss_weight (float): Weight for BCE in combined loss
+            augmentation_scheduler: Controls augmentation intensity
+            wandb_logger: Logger for experiment tracking
 
+        Returns:
+            None
+        """
+
+        # Move model to device
         self.model = model.to(device)
         self.device = device
 
+        # Data loaders
         self.train_loader = train_loader
         self.val_loader = val_loader
 
+        # Training config
         self.max_epochs = max_epochs
         self.patience = patience
         self.batch_size = batch_size
@@ -92,24 +156,43 @@ class Trainer:
         self.min_lr = min_lr
         self.bce_loss_weight = bce_loss_weight
 
+        # Loss function
         self.criterion = BCEDiceLoss(bce_loss_weight=self.bce_loss_weight)
+
+        # Optimizer
         self.optimizer = optim.AdamW(model.parameters(), lr=base_lr)
+
+        # Learning scheduler
         self.scheduler = CosineAnnealingLR(self.optimizer, T_max=self.max_epochs, eta_min=self.min_lr)
+
+        # Early stopping
         self.early_stopping = EarlyStopping(patience=self.patience, min_delta=0.0, verbose=True)
+
+        # Augmentation scheduler function
         self.augmentation_scheduler = augmentation_scheduler
         
+        # Metrics tracker
         self.metrics = MetricsAccumulator(self.device)
 
+        # Visualization tool
         self.vis = VisSegmentation(self.val_loader, self.device)
 
+        # Logs
         self.logger = logging.getLogger(__name__)
         self.log_model_info()
 
+        # Wandb logger
         self.wandb_logger = wandb_logger
 
     def log_model_info(self):
+        """
+        Logs model architecture and parameter counts.
+        """
+
+        # Print model structure
         self.logger.info(self.model)
 
+        # Count parameters
         total_params = sum(p.numel() for p in self.model.parameters())
         trainable_params = sum(p.numel() for p in self.model.parameters() if p.requires_grad)
 
@@ -117,65 +200,116 @@ class Trainer:
         self.logger.info(f"Trainable params: {trainable_params:,}")
 
     def train_one_epoch(self):
+        """
+        Runs one full training epoch.
+
+        Returns:
+            Metrics: Aggregated training metrics
+        """
+
+        # Set model to training mode
         self.model.train()
+
+        # Reset metrics
         self.metrics.reset()
 
         for imgs, masks in tqdm(self.train_loader, total=len(self.train_loader), desc="Training"):
+            # Move data to device
             imgs, masks = imgs.to(self.device, non_blocking=True), masks.to(self.device, non_blocking=True)
 
-            # Forward
+            # Forward pass
             logits = self.model(imgs)
 
-            # Calculate losses
+            # ------------------
+            # Loss computation
+            # ------------------
             bcedice_loss_train = self.criterion(logits, masks)
             dice_loss_train = dice_loss(logits, masks)
             iou_loss_train = iou_loss(logits, masks)
 
-            # Backward
+            # ------------------
+            # Backward pass
+            # ------------------
             self.optimizer.zero_grad()
             bcedice_loss_train.backward()
             self.optimizer.step()
 
-            # Predictions for metrics
+            # ------------------
+            # Predictions
+            # ------------------
             probs = torch.sigmoid(logits)
-            preds = (probs > 0.5).long()  
+            preds = (probs > 0.5).long()
 
             preds = preds.squeeze(1)
             masks = masks.squeeze(1)
 
-            self.metrics.update(bcedice_loss_train, dice_loss_train, iou_loss_train, preds, masks)
+            # Update training metrics
+            self.metrics.update(
+                bcedice_loss_train, 
+                dice_loss_train, 
+                iou_loss_train, 
+                preds, 
+                masks)
 
         return self.metrics.compute()
 
     def evaluate(self):
+        """
+        Runs validation loop.
+
+        Returns:
+            Metrics: Aggregated validation metrics
+        """
+
+        # Set model to evaluation mode
         self.model.eval()
+
+        # Reset evaluation metrics
         self.metrics.reset()
 
         with torch.no_grad():
             for imgs, masks in tqdm(self.val_loader, total=len(self.val_loader), desc="Evaluating"):
+                # Move data to device
                 imgs, masks = imgs.to(self.device, non_blocking=True), masks.to(self.device, non_blocking=True)
-
-                # Forward
+   
+                # Forward pass
                 logits = self.model(imgs)
 
-                # Calculate losses
+                # ------------------
+                # Loss computation
+                # ------------------
                 bcedice_loss_val = self.criterion(logits, masks)
                 dice_loss_val = dice_loss(logits, masks)
                 iou_loss_val = iou_loss(logits, masks)
 
-                # Predictions for metrics
+                # ------------------
+                # Predictions
+                # ------------------
                 probs = torch.sigmoid(logits)
                 preds = (probs > 0.5).long()
 
                 preds = preds.squeeze(1)
                 masks = masks.squeeze(1)
 
-                self.metrics.update(bcedice_loss_val, dice_loss_val, iou_loss_val, preds, masks)
+                # Update validation metrics
+                self.metrics.update(
+                    bcedice_loss_val, 
+                    dice_loss_val, 
+                    iou_loss_val, 
+                    preds, 
+                    masks)
 
         return self.metrics.compute()
 
     def log_metrics(self, train_metrics, eval_metrics):
-    
+        """
+        Logs metrics in table format.
+
+        Args:
+            train_metrics (Metrics): Training metrics
+            eval_metrics (Metrics): Validation metrics
+        """
+
         table = [
             ["BCE + Dice Loss", train_metrics.bcedice_loss, eval_metrics.bcedice_loss],
             ["Dice Loss", train_metrics.dice_loss, eval_metrics.dice_loss],
@@ -192,38 +326,58 @@ class Trainer:
         ))
 
     def __call__(self):
+        """
+        Runs full training process.
+
+        Returns:
+            None
+        """
+
         for epoch in range(self.max_epochs):
+
+            # Logging
             self.logger.info(f"_____________________________________________________________________________________")
             self.logger.info(f"Epoch: {epoch+1} / {self.max_epochs}")
             self.logger.info(f"Current LR: {self.optimizer.param_groups[0]['lr']:.6f}")
 
+            # Update augmentation intensity
             self.augmentation_scheduler.set_epoch(epoch)
 
+            # Get training and validation metrics
             train_metrics = self.train_one_epoch()
             val_metrics = self.evaluate()
 
+            # Store metrics 
             self.metrics.store(train_metrics, mode="train")
             self.metrics.store(val_metrics, mode="val")
 
+            # Log metrics
             self.log_metrics(train_metrics, val_metrics)
             
+            # Segmentation visualization
             if (epoch+1) % 1 == 0:
                 vis_fig = self.vis(model=self.model, epoch=epoch+1, num_samples=8)
                 self.wandb_logger.log_fig(vis_fig, epoch+1)
 
+            # Scheduler step
             self.scheduler.step()
+            
+            # Early stopping check
             self.early_stopping(val_metrics.dice_metric, self.model)
             if self.early_stopping.early_stop:
                 break
 
+        # Save best model to W&B
         self.wandb_logger.log_artifact("checkpoints/best_model.pth", "best-model")
 
+        # Log full history
         self.wandb_logger.log_metrics(self.metrics.history_train.bcedice_loss, self.metrics.history_val.bcedice_loss, name="BCE + Dice Loss") 
         self.wandb_logger.log_metrics(self.metrics.history_train.dice_loss, self.metrics.history_val.dice_loss, name="Dice Loss") 
         self.wandb_logger.log_metrics(self.metrics.history_train.iou_loss, self.metrics.history_val.iou_loss, name="IoU Loss")
         self.wandb_logger.log_metrics(self.metrics.history_train.dice_metric, self.metrics.history_val.dice_metric, name="Dice Metric")
         self.wandb_logger.log_metrics(self.metrics.history_train.iou_metric, self.metrics.history_val.iou_metric, name="IoU Metric")
 
+        # Finish experiment
         self.wandb_logger.finish()
 
 

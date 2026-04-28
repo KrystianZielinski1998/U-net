@@ -35,12 +35,12 @@ def parse_args():
         description="Segmentation using U-Net"
     )
 
-    # Dataset parameters
+    # Dataset name
     parser.add_argument("-d", "--dataset_name", type=str, required=True, help="Name of the dataset")
-    
+
     # Training hyperparameters
     parser.add_argument("--batch_size", type=int, default=16, help="Batch size for training and validation")
-    parser.add_argument("--max_epochs", type=int, default=100, help="Maximum number of epochs")
+    parser.add_argument("--max_epochs", type=int, default=80, help="Maximum number of epochs")
     parser.add_argument("--patience", type=int, default=20, help="Early stopping patience")
     parser.add_argument("--base_lr", type=float, default=1e-3, help="Initial learning rate")
     parser.add_argument("--min_lr", type=float, default=1e-6, help="Minimal lr")
@@ -48,12 +48,13 @@ def parse_args():
     parser.add_argument("--bce_loss_weight", type=float, default=0.5, help="Weight of the BCELoss part in the total DiceBCELoss")
 
     # Online augmentation parameters
+    parser.add_argument("--use_aug", action="store_true", help="Enable augmentation")
     parser.add_argument("--aug_start_epoch", type=int, default=10, help="Epoch at which data augmentation begins to be applied (linearly increasing intensity)")
-    parser.add_argument("--aug_end_epoch", type=int, default=90, help="Epoch at which augmentation reaches full intensity (1.0)")
+    parser.add_argument("--aug_end_epoch", type=int, default=70, help="Epoch at which augmentation reaches full intensity (1.0)")
 
     # CLAHE preprocessing
-    parser.add_argument("--use_clahe", type=bool, default=True, help="Use/Do not use clahe contrast enhancement as a preprocessing step")
-    parser.add_argument("--clahe_clip_limit", type=float, default=1.0, help="Controls how much contrast is enhanced: lower values limit contrast amplification "
+    parser.add_argument("--use_clahe", action="store_true", help="Enable CLAHE preprocessing")
+    parser.add_argument("--clahe_clip_limit", type=float, default=1.25, help="Controls how much contrast is enhanced: lower values limit contrast amplification "
         "and reduce noise, higher values increase contrast but may amplify noise/artifacts.")
     
     # Wandb config

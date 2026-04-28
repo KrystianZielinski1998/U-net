@@ -4,42 +4,38 @@ import torch
 
 
 class CLAHEPreprocessor:
+    """
+    CLAHE contrast enhancement preprocessing module.
+
+    Assumes input is always a torch.Tensor of shape [1, H, W].
+    """
+
     def __init__(self, clahe_clip_limit=2.0, tile_grid_size=(8, 8)):
+        # OpenCV CLAHE operator
         self.clahe = cv2.createCLAHE(
             clipLimit=clahe_clip_limit,
             tileGridSize=tile_grid_size
         )
 
-    def __call__(self, img):
+    def __call__(self, img: torch.Tensor):
         """
-        Supports:
-        - torch.Tensor (1, H, W)
-        - numpy.ndarray (H, W)
+        Applies CLAHE to a torch image.
+
+        Args:
+            img (torch.Tensor): [1, H, W] grayscale image
 
         Returns:
-        - same type as input
+            torch.Tensor: CLAHE-enhanced image [1, H, W]
         """
 
-        is_tensor = isinstance(img, torch.Tensor)
+        # remove channel dim: [H, W]
+        img_np = img.squeeze(0).cpu().numpy()
 
-        # --- convert to numpy ---
-        if is_tensor:
-            img_np = img.squeeze(0).cpu().numpy()
-        else:
-            img_np = img
-
-        # --- ensure uint8 ---
-        if img_np.dtype != np.uint8:
-            img_np = np.clip(img_np, 0, 255).astype(np.uint8)
-
-        # --- apply CLAHE ---
+        # apply CLAHE
         img_np = self.clahe.apply(img_np)
 
-        # --- convert back if needed ---
-        if is_tensor:
-            return torch.from_numpy(img_np).unsqueeze(0).float()
-        else:
-            return img_np
+        # back to torch tensor
+        return torch.from_numpy(img_np).unsqueeze(0).float()
 
     
 
