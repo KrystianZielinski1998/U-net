@@ -333,7 +333,7 @@ class Trainer:
             None
         """
 
-        for epoch in range(self.max_epochs):
+        for epoch in range(1, self.max_epochs+1):
 
             # Logging
             self.logger.info(f"_____________________________________________________________________________________")
@@ -355,9 +355,9 @@ class Trainer:
             self.log_metrics(train_metrics, val_metrics)
             
             # Segmentation visualization
-            if (epoch+1) % 1 == 0:
-                vis_fig = self.vis(model=self.model, epoch=epoch+1, num_samples=8)
-                self.wandb_logger.log_fig(vis_fig, epoch+1)
+            if (epoch) % 1 == 0:
+                vis_fig = self.vis(model=self.model, epoch=epoch, num_samples=8)
+                self.wandb_logger.log_fig(vis_fig, epoch)
 
             # Scheduler step
             self.scheduler.step()
@@ -379,6 +379,7 @@ class Trainer:
 
         # Finish experiment
         self.wandb_logger.finish()
+
 
 
 

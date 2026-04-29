@@ -5,6 +5,7 @@ from PIL import Image
 import numpy as np
 import random
 
+
 class DatasetReader(Dataset):
     """
     PyTorch dataset for loading grayscale images and binary segmentation masks.
@@ -362,8 +363,7 @@ class DataModule:
             num_workers=self.num_workers,
             pin_memory=True,
             worker_init_fn=self._worker_init_fn,
-            generator=g,
-            persistent_workers=True
+            generator=g
         )
 
         # Validation DataLoader
