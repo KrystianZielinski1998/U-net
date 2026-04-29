@@ -337,11 +337,12 @@ class Trainer:
 
             # Logging
             self.logger.info(f"_____________________________________________________________________________________")
-            self.logger.info(f"Epoch: {epoch+1} / {self.max_epochs}")
+            self.logger.info(f"Epoch: {epoch} / {self.max_epochs}")
             self.logger.info(f"Current LR: {self.optimizer.param_groups[0]['lr']:.6f}")
 
             # Update augmentation intensity
-            self.augmentation_scheduler.set_epoch(epoch)
+            if self.augmentation_scheduler is not None:
+              self.augmentation_scheduler.set_epoch(epoch)
 
             # Get training and validation metrics
             train_metrics = self.train_one_epoch()
@@ -379,6 +380,9 @@ class Trainer:
 
         # Finish experiment
         self.wandb_logger.finish()
+
+
+
 
 
 
