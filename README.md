@@ -17,10 +17,10 @@ https://www.kaggle.com/datasets/nikhilroxtomar/brain-tumor-segmentation
 ## Key Features
 
 * **Custom U-Net Architecture** – U-Net with Residual Blocks.
-* **BCE + Dice Loss** – Custom hybrid loss function for stable segmentation training.
+* **Custom Hybrid Loss Function** – Custom hybrid loss function combining BCE and Dice Loss.
 * **Performance Metrics** – Dice and IoU scores computed using torchmetrics (`BinaryF1Score`, `BinaryJaccardIndex`) along with custom loss implementations.
 * **Curriculum-based Data Augmentation** – Augmentation strength increases progressively during training using Albumentations.
-* **Preprocessing Pipeline** – Z-score normalization and optional CLAHE contrast enhancement.
+* **Preprocessing Pipeline** – Resizing, Z-score normalization and optional CLAHE contrast enhancement.
 * **Segmentation Visualization** – Visualization of predictions on validation samples after each epoch.
 * **Experiment Tracking** – Integrated experiment tracking using Weights & Biases.
 
