@@ -10,7 +10,7 @@ class CLAHEPreprocessor:
     Assumes input is always a torch.Tensor of shape [1, H, W].
     """
 
-    def __init__(self, clahe_clip_limit=2.0, tile_grid_size=(8, 8)):
+    def __init__(self, clahe_clip_limit=2.0, tile_grid_size=(4, 4)):
         # OpenCV CLAHE operator
         self.clahe = cv2.createCLAHE(
             clipLimit=clahe_clip_limit,
@@ -28,16 +28,25 @@ class CLAHEPreprocessor:
             torch.Tensor: CLAHE-enhanced image [1, H, W]
         """
 
-        # remove channel dim: [H, W]
-        img_np = img.squeeze(0).cpu().numpy()
+        is_tensor = isinstance(img, torch.Tensor)
 
-        # apply CLAHE
+        if is_tensor:
+            img_np = img.detach().cpu().numpy()
+        else:
+            img_np = np.asarray(img)
+
+        img_np = np.squeeze(img_np)
+
+        if img_np.dtype != np.uint8:
+            img_np = img_np.astype(np.uint8)
+
         img_np = self.clahe.apply(img_np)
 
-        # back to torch tensor
-        return torch.from_numpy(img_np).unsqueeze(0).float()
-
-    
+        if is_tensor:
+            return torch.from_numpy(img_np).unsqueeze(0)
+        else:
+            return img_np
+        
 
 
     

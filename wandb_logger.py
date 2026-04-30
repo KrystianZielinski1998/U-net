@@ -88,39 +88,75 @@ class WandbLogger:
         # Log artifact to W&B
         wandb.log_artifact(artifact)
 
-    def log_metrics(self, y1, y2, name):
+    def log_metrics(self, train_history, val_history):
         """
-        Logs training and validation metrics across epochs.
-
-        Args:
-            y1 (list or array): Training metric values per epoch
-            y2 (list or array): Validation metric values per epoch
-            name (str): Metric name (e.g. "loss", "dice")
-
-        Returns:
-            None
+        Logs training and validation metrics to Weights & Biases.
+        One step = one epoch.
+        Additionally stores metrics from the best epoch (based on val/Dice Metric).
         """
 
-        # Define epoch as global step
+        import wandb
+
         wandb.define_metric("epoch")
+        wandb.define_metric("*", step_metric="epoch")
 
-        # Link train metric to epoch
-        wandb.define_metric(f"train/{name}", step_metric="epoch")
+        num_epochs = len(train_history.bcedice_loss)
 
-        # Link validation metric to epoch
-        wandb.define_metric(f"val/{name}", step_metric="epoch")
+        best_dice = -1
+        best_epoch = -1
+        best_metrics = {}
 
-        # Create epoch index list
-        epochs = list(range(1, len(y1) + 1))
+        for i in range(num_epochs):
+            epoch = i + 1
 
-        # Log metrics for each epoch
-        for epoch, train, val in zip(epochs, y1, y2):
-
-            wandb.log({
+            log_dict = {
                 "epoch": epoch,
-                f"train/{name}": train,
-                f"val/{name}": val
-            })
+
+                "train/BCE + Dice Loss": train_history.bcedice_loss[i],
+                "val/BCE + Dice Loss": val_history.bcedice_loss[i],
+
+                "train/Dice Loss": train_history.dice_loss[i],
+                "val/Dice Loss": val_history.dice_loss[i],
+
+                "train/IoU Loss": train_history.iou_loss[i],
+                "val/IoU Loss": val_history.iou_loss[i],
+
+                "train/Dice Metric": train_history.dice_metric[i],
+                "val/Dice Metric": val_history.dice_metric[i],
+
+                "train/IoU Metric": train_history.iou_metric[i],
+                "val/IoU Metric": val_history.iou_metric[i],
+            }
+
+            wandb.log(log_dict)
+
+            
+            if val_history.dice_metric[i] > best_dice:
+                best_dice = val_history.dice_metric[i]
+                best_epoch = epoch
+
+              
+                best_metrics = {
+                    "best/epoch": epoch,
+
+                    "best/train_BCE+Dice": train_history.bcedice_loss[i],
+                    "best/val_BCE+Dice": val_history.bcedice_loss[i],
+
+                    "best/train_Dice_Loss": train_history.dice_loss[i],
+                    "best/val_Dice_Loss": val_history.dice_loss[i],
+
+                    "best/train_IoU_Loss": train_history.iou_loss[i],
+                    "best/val_IoU_Loss": val_history.iou_loss[i],
+
+                    "best/train_Dice": train_history.dice_metric[i],
+                    "best/val_Dice": val_history.dice_metric[i],
+
+                    "best/train_IoU": train_history.iou_metric[i],
+                    "best/val_IoU": val_history.iou_metric[i],
+                }
+
+
+        wandb.run.summary.update(best_metrics)
 
     def finish(self):
         """

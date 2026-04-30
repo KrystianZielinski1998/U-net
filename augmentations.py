@@ -26,24 +26,33 @@ class Augmenter:
         """
 
         # Define augmentation ranges
-        rotate_min, rotate_max = 5, 15            
-        translate_min, translate_max = 0.05, 0.15 
-        scale_min, scale_max = 0.05, 0.15        
-        shear_min, shear_max = 2, 6               
+        rotate_min, rotate_max = 3, 15           
+        translate_min, translate_max = 0.05, 0.125 
+        scale_min, scale_max = 0.05, 0.125       
+        shear_min, shear_max = 2, 7              
+        brightness_min, brightness_max = 0.025, 0.1
 
-        # probability range for applying strong augmentations
-        prob_min, prob_max = 0.5, 0.8
+        # probability range 
+        prob_min, prob_max = 0.5, 0.75
 
         # Interpolate values using intensity
         rotate = rotate_min + intensity * (rotate_max - rotate_min)
         translate = translate_min + intensity * (translate_max - translate_min)
         scale = scale_min + intensity * (scale_max - scale_min)
         shear = shear_min + intensity * (shear_max - shear_min)
+        brightness = brightness_min +  intensity * (brightness_max - brightness_min)
         prob = prob_min + intensity * (prob_max - prob_min)
+        
 
         # Build augmentation pipeline
         transform = A.Compose([
-            A.HorizontalFlip(p=0.5),  
+            A.HorizontalFlip(p=0.5), 
+             
+            A.RandomBrightnessContrast(
+                brightness_limit=brightness,   
+                contrast_limit=0.0,     
+                p=prob           
+            ),
 
             A.OneOf([
                 # Path 1: rotation + translation & zoom
