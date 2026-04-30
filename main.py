@@ -46,7 +46,7 @@ def parse_args():
     parser.add_argument("--min_lr", type=float, default=1e-6, help="Minimal lr")
     parser.add_argument("--img_size", type=float, default=224, help="Image size")
     parser.add_argument("--bce_loss_weight", type=float, default=0.5, help="Weight of the BCELoss part in the total DiceBCELoss")
-    parser.add_argument("--val_split", type=float, default=0.15, help="Fraction of the dataset used for validation (e.g., 0.15 = 15% validation, 85% training)")
+    parser.add_argument("--val_split", type=float, default=0.1, help="Fraction of the dataset used for validation (e.g., 0.1 = 10% validation, 90% training)")
 
     # Online augmentation parameters
     parser.add_argument("--use_aug", action="store_true", help="Enable augmentation")
