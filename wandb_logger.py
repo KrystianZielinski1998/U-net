@@ -39,6 +39,7 @@ class WandbLogger:
                 "min_lr": args.min_lr,
                 "img_size": args.img_size,
                 "bce_loss_weight": args.bce_loss_weight,
+                "val_split": args.val_split,
 
                 # augmentation schedule
                 "aug_start_epoch": args.aug_start_epoch,

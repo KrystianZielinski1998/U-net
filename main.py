@@ -46,6 +46,7 @@ def parse_args():
     parser.add_argument("--min_lr", type=float, default=1e-6, help="Minimal lr")
     parser.add_argument("--img_size", type=float, default=224, help="Image size")
     parser.add_argument("--bce_loss_weight", type=float, default=0.5, help="Weight of the BCELoss part in the total DiceBCELoss")
+    parser.add_argument("--val_split", type=float, default=0.15, help="Fraction of the dataset used for validation (e.g., 0.15 = 15% validation, 85% training)")
 
     # Online augmentation parameters
     parser.add_argument("--use_aug", action="store_true", help="Enable augmentation")
@@ -118,6 +119,7 @@ def main():
         masks_path="dataset/masks",
         img_size=args.img_size,
         batch_size=args.batch_size,
+        val_split=args.val_split
         clahe_preprocessor=clahe_preprocessor,
         normalizer=normalizer,
         augmenter=augmenter,

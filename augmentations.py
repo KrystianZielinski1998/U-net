@@ -26,11 +26,11 @@ class Augmenter:
         """
 
         # Define augmentation ranges
-        rotate_min, rotate_max = 3, 15           
-        translate_min, translate_max = 0.05, 0.125 
-        scale_min, scale_max = 0.05, 0.125       
+        rotate_min, rotate_max = 5, 15           
+        translate_min, translate_max = 0.05, 0.1 
+        scale_min, scale_max = 0.05, 0.1       
         shear_min, shear_max = 2, 7              
-        brightness_min, brightness_max = 0.025, 0.1
+        brightness_min, brightness_max = 0.025, 0.075
 
         # probability range 
         prob_min, prob_max = 0.5, 0.75
@@ -47,7 +47,7 @@ class Augmenter:
         # Build augmentation pipeline
         transform = A.Compose([
             A.HorizontalFlip(p=0.5), 
-             
+
             A.RandomBrightnessContrast(
                 brightness_limit=brightness,   
                 contrast_limit=0.0,     
