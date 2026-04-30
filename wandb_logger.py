@@ -51,6 +51,9 @@ class WandbLogger:
             }
         )
 
+        wandb.define_metric("epoch")
+        wandb.define_metric("*", step_metric="epoch")
+
     def log_fig(self, fig, epoch: int):
         """
         Logs a matplotlib figure to Weights & Biases.
@@ -96,11 +99,6 @@ class WandbLogger:
         Additionally stores metrics from the best epoch (based on val/Dice Metric).
         """
 
-        import wandb
-
-        wandb.define_metric("epoch")
-        wandb.define_metric("*", step_metric="epoch")
-
         num_epochs = len(train_history.bcedice_loss)
 
         best_dice = -1
@@ -111,8 +109,6 @@ class WandbLogger:
             epoch = i + 1
 
             log_dict = {
-                "epoch": epoch,
-
                 "train/BCE + Dice Loss": train_history.bcedice_loss[i],
                 "val/BCE + Dice Loss": val_history.bcedice_loss[i],
 
@@ -129,7 +125,7 @@ class WandbLogger:
                 "val/IoU Metric": val_history.iou_metric[i],
             }
 
-            wandb.log(log_dict)
+            wandb.log(log_dict, step=epoch)
 
             
             if val_history.dice_metric[i] > best_dice:
