@@ -49,15 +49,15 @@ https://www.kaggle.com/datasets/nikhilroxtomar/brain-tumor-segmentation
 
 
 <p align="center">
-  <img src="images/dice.png" width="500"/>
+  <img src="images/dice.png" width="700"/>
 </p>
 
 Example segmentation output
 
 <p align="center">
   
-  <img src="images/base.png" width="500"/>
-  <img src="images/clahe.png" width="500"/>
+  <img src="images/base_vis.png" width="500"/>
+  <img src="images/clahe_vis.png" width="500"/>
 </p>
 
 ---
