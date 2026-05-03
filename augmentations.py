@@ -26,33 +26,26 @@ class Augmenter:
         """
 
         # Define augmentation ranges
-        rotate_min, rotate_max = 5, 15           
-        translate_min, translate_max = 0.05, 0.1 
-        scale_min, scale_max = 0.05, 0.1       
-        shear_min, shear_max = 2, 7              
-        brightness_min, brightness_max = 0.025, 0.075
+        rotate_min, rotate_max = 3, 15           
+        translate_min, translate_max = 0.025, 0.1 
+        scale_min, scale_max = 0.025, 0.1       
+        shear_min, shear_max = 1, 6              
 
         # probability range 
-        prob_min, prob_max = 0.5, 0.75
-
+        prob_min, prob_max = 0.4, 0.6
+        
         # Interpolate values using intensity
         rotate = rotate_min + intensity * (rotate_max - rotate_min)
         translate = translate_min + intensity * (translate_max - translate_min)
         scale = scale_min + intensity * (scale_max - scale_min)
         shear = shear_min + intensity * (shear_max - shear_min)
-        brightness = brightness_min +  intensity * (brightness_max - brightness_min)
+
         prob = prob_min + intensity * (prob_max - prob_min)
         
 
         # Build augmentation pipeline
         transform = A.Compose([
-            A.HorizontalFlip(p=0.5), 
-
-            A.RandomBrightnessContrast(
-                brightness_limit=brightness,   
-                contrast_limit=0.0,     
-                p=prob           
-            ),
+            A.HorizontalFlip(p=0.25), 
 
             A.OneOf([
                 # Path 1: rotation + translation & zoom
@@ -75,6 +68,7 @@ class Augmenter:
                 ),
             ], p=prob),
         ])
+
 
         # Apply transform to image and mask simultaneously
         out = transform(image=image, mask=mask)

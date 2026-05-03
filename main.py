@@ -50,7 +50,7 @@ def parse_args():
 
     # Online augmentation parameters
     parser.add_argument("--use_aug", action="store_true", help="Enable augmentation")
-    parser.add_argument("--aug_start_epoch", type=int, default=10, help="Epoch at which data augmentation begins to be applied (linearly increasing intensity)")
+    parser.add_argument("--aug_start_epoch", type=int, default=1, help="Epoch at which data augmentation begins to be applied (linearly increasing intensity)")
     parser.add_argument("--aug_end_epoch", type=int, default=80, help="Epoch at which augmentation reaches full intensity (1.0)")
 
     # CLAHE preprocessing
@@ -119,7 +119,7 @@ def main():
         masks_path="dataset/masks",
         img_size=args.img_size,
         batch_size=args.batch_size,
-        val_split=args.val_split
+        val_split=args.val_split,
         clahe_preprocessor=clahe_preprocessor,
         normalizer=normalizer,
         augmenter=augmenter,

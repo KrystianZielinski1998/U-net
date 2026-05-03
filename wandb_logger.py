@@ -1,6 +1,9 @@
 import wandb
 
 
+import wandb
+
+
 class WandbLogger:
     """
     Class for logging training experiments to Weights & Biases.
@@ -109,6 +112,8 @@ class WandbLogger:
             epoch = i + 1
 
             log_dict = {
+                "epoch": epoch,
+
                 "train/BCE + Dice Loss": train_history.bcedice_loss[i],
                 "val/BCE + Dice Loss": val_history.bcedice_loss[i],
 
@@ -125,7 +130,7 @@ class WandbLogger:
                 "val/IoU Metric": val_history.iou_metric[i],
             }
 
-            wandb.log(log_dict, step=epoch)
+            wandb.log(log_dict)
 
             
             if val_history.dice_metric[i] > best_dice:
