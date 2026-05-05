@@ -5,7 +5,7 @@
 
 This project implements a U-Net architecture for 2D brain tumor segmentation, including training and evaluation pipeline implemented with PyTorch.
 
-For the data preprocessing, all images were resized to a fixed size, normalized with Z-score normalization, and optionally processed with CLAHE contrast enhancement. This project additionally evaluates the effect of applying CLAHE contrast enhancement on segmentation performance. Results of this experiment are available in the section below.
+For the data preprocessing, all images were resized to a fixed size, normalized with Z-score normalization, and optionally processed with CLAHE contrast enhancement. This project additionally evaluates the effect of applying CLAHE contrast enhancement on segmentation performance. Results of this experiment are available in the Results section below.
 
 For this project a custom curriculum-based online data augmentation strategy was implemented using Albumentations. In this strategy augmentation intensity gradually increases during training. 
 
@@ -42,23 +42,30 @@ https://www.kaggle.com/datasets/nikhilroxtomar/brain-tumor-segmentation
 
 ## Results
 
+The impact of contrast enhancement using CLAHE on segmentation performance was evaluated by comparing it against the same pipeline without the CLAHE preprocessing step. The results are reported as the best Dice and IoU scores achieved on the validation set. The results are presented in the table below.
+
 | Preprocessing | Dice Score | IoU Score |
 |---------------|------------|-----------|
 | CLAHE         | 0.83188    | 0.71216   |
-| Base          | 0.82761    | 0.70591   |
+| Baseline      | 0.82761    | 0.70591   |
 
+All training metrics were tracked using Weights & Biases, which enabled visualization of model performance. An example validation Dice score plot is presented below.
 
 <p align="center">
   <img src="images/dice.png" width="700"/>
 </p>
 
-Example segmentation output
+*Comparison of Dice scores on the validation set for the baseline and CLAHE preprocessing.*
+
+Additionaly, during training segmentation results on selected validation images were logged. Below are example plots for the baseline model and the model with CLAHE preprocessing.
 
 <p align="center">
   
-  <img src="images/base_vis.png" width="500"/>
-  <img src="images/clahe_vis.png" width="500"/>
+  <img src="images/base_vis.png" width="700"/>
+  <img src="images/clahe_vis.png" width="700"/>
 </p>
+
+*Segmentation performance visualization on validation set samples for the baseline model and model with CLAHE preprocessing.*
 
 ---
 
