@@ -49,21 +49,24 @@ The impact of contrast enhancement using CLAHE on segmentation performance was e
 | CLAHE         | 0.83188    | 0.71216   |
 | Baseline      | 0.82761    | 0.70591   |
 
-All training metrics were tracked using Weights & Biases, which enabled visualization of model performance. An example validation Dice score plot is presented below.
+All training metrics were tracked using Weights & Biases, which enabled visualization of model performance. An example plot of the validation Dice score over training epochs is shown below.
 
 <p align="center">
   <img src="images/dice.png" width="700"/>
 </p>
 <p align="center"><em>Figure 1: Comparison of Dice scores on the validation set for the baseline and CLAHE preprocessing.</em></p>
 
-Additionaly, during training segmentation results on selected validation images were logged. Below are example plots for the baseline model and the model with CLAHE preprocessing.
+Additionaly, during training segmentation results on selected validation images were logged. Below are example plots for the baseline model and the model with CLAHE image preprocessing.
 
 <p align="center">
-  
   <img src="images/base_vis.png" width="700"/>
+</p>  
+<p align="center"><em>Figure 2: Segmentation performance visualization on validation set samples for the baseline model</em></p>
+
+<p align="center">  
   <img src="images/clahe_vis.png" width="700"/>
 </p>
-<p align="center"><em>Figure 2: Segmentation performance visualization on validation set samples for the baseline model and model with CLAHE preprocessing.</em></p>
+<p align="center"><em>Figure 3: Segmentation performance visualization on validation set samples for the model with CLAHE image preprocessing.</em></p>
 
 ---
 
