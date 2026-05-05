@@ -54,8 +54,7 @@ All training metrics were tracked using Weights & Biases, which enabled visualiz
 <p align="center">
   <img src="images/dice.png" width="700"/>
 </p>
-
-*Comparison of Dice scores on the validation set for the baseline and CLAHE preprocessing.*
+<p align="center"><em>Figure 1: Comparison of Dice scores on the validation set for the baseline and CLAHE preprocessing.</em></p>
 
 Additionaly, during training segmentation results on selected validation images were logged. Below are example plots for the baseline model and the model with CLAHE preprocessing.
 
@@ -64,8 +63,7 @@ Additionaly, during training segmentation results on selected validation images 
   <img src="images/base_vis.png" width="700"/>
   <img src="images/clahe_vis.png" width="700"/>
 </p>
-
-*Segmentation performance visualization on validation set samples for the baseline model and model with CLAHE preprocessing.*
+<p align="center"><em>Figure 2: Segmentation performance visualization on validation set samples for the baseline model and model with CLAHE preprocessing.</em></p>
 
 ---
 
