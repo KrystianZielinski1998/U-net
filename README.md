@@ -1,17 +1,20 @@
-# U-Net implementation for 2D Brain Tumor Segmentation
+# U-Net for 2D Brain Tumor Segmentation
 
 ![Python](https://img.shields.io/badge/Python-3.8%2B-blue?logo=python)
 ![PyTorch](https://img.shields.io/badge/PyTorch-2.0%2B-ee4c2c?logo=pytorch)
+![Weights & Biases](https://img.shields.io/badge/Weights%20%26%20Biases-1.0-FFBE00?logo=weightsandbiases)
 
-This project implements a U-Net architecture for 2D brain tumor segmentation, including training and evaluation pipeline implemented with PyTorch.
+### Summary
 
-For the data preprocessing, all images were resized to a fixed size, normalized with Z-score normalization, and optionally processed with CLAHE contrast enhancement. This project additionally evaluates the effect of applying CLAHE contrast enhancement on segmentation performance. Results of this experiment are available in the Results section below.
+This project implements a U-Net architecture with ResNet blocks for 2D brain tumor segmentation. It includes training and evaluation pipeline implemented with PyTorch.
 
-For this project a custom curriculum-based online data augmentation strategy was implemented using Albumentations. In this strategy augmentation intensity gradually increases during training. 
+In this project, a preprocessing pipeline includes resizing images to a fixed resolution and applying Z-score normalization. Additionally, an optional CLAHE contrast enhancement step was introduced. The impact of preprocesing images with CLAHE contrast enhancement on segmentation performance is evaluated. Results of this experiment are presented in section below.
 
-Segmentation performance is evaluated using Dice and IoU scores from torchmetrics, with additional segmentation visualization tools built in matplotlib. 
+For this project, a custom curriculum-based online data augmentation strategy was implemented, in which augmentation intensity gradually increases during training. The augmentation pipeline includes horizontal flipping, random rotations, zooming, translations, and shearing.
 
-The experiments were tracked via Weights & Biases. 
+Segmentation performance is evaluated using Dice and IoU scores, with additional segmentation visualization tools. 
+
+The experiments were conducted in Google Colab on NVIDIA L4 GPU and the results were tracked via Weights & Biases. 
 
 The dataset used for training and evaluation is available on Kaggle:  
 https://www.kaggle.com/datasets/nikhilroxtomar/brain-tumor-segmentation
